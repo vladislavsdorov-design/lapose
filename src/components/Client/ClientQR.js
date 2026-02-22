@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { ref, set, get } from "firebase/database";
 import { database } from "../../firebase/config";
 import { QRCodeSVG } from "qrcode.react";
-import "./ClientQR.css"; // Подключаем CSS
+import "./ClientQR.css";
 
 const ClientQR = () => {
   const [ticket, setTicket] = useState(null);
@@ -23,19 +23,6 @@ const ClientQR = () => {
     const random = Math.random().toString(36).substring(2, 15);
     const secret = Math.random().toString(36).substring(2, 15);
     return `${timestamp}_${random}_${secret}`;
-  };
-
-  // Проверка валидности QR-кода
-  const validateQRData = (qrData) => {
-    const parts = qrData.split("_");
-    if (parts.length !== 3) return false;
-
-    const timestamp = parseInt(parts[0]);
-    const now = Date.now();
-    const hoursDiff = (now - timestamp) / (1000 * 60 * 60);
-
-    // QR-код действителен только 24 часа
-    return hoursDiff <= 24;
   };
 
   const generateTicket = async () => {
