@@ -1,0 +1,223 @@
+.ticket-details-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.ticket-details-modal {
+  background: white;
+  border-radius: 20px;
+  padding: 30px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #999;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.ticket-status-badge {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.status-pending {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-issued {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-completed {
+  background: #cce5ff;
+  color: #004085;
+}
+
+.status-cancelled {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.ticket-details-number {
+  font-size: 36px;
+  color: #333;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.ticket-details-info {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  color: #666;
+  font-weight: 500;
+}
+
+.info-value {
+  color: #333;
+  font-weight: 600;
+}
+
+.info-value.token {
+  font-family: monospace;
+  color: #666;
+}
+
+.action-message {
+  text-align: center;
+  padding: 10px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  background: #d4edda;
+  color: #155724;
+  animation: pulse 1s;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.action-btn {
+  padding: 15px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.accept-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+}
+
+.accept-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
+}
+
+.return-btn {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: white;
+}
+
+.return-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+}
+
+.cancel-btn {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+}
+
+.view-btn {
+  background: linear-gradient(135deg, #6c757d 0%, #5a6268 100%);
+  color: white;
+}
+
+.view-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
+}
+
+@media (max-width: 600px) {
+  .ticket-details-modal {
+    padding: 20px;
+  }
+
+  .ticket-details-number {
+    font-size: 28px;
+  }
+
+  .action-btn {
+    padding: 12px;
+  }
+}

@@ -3,6 +3,7 @@ import { ref, onValue } from "firebase/database";
 import { database } from "../../firebase/config";
 import QRScanner from "./QRScanner";
 import TicketDetails from "./TicketDetails";
+import "./AdminPanel.css";
 import {
   Container,
   Paper,

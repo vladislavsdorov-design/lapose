@@ -2,20 +2,13 @@ import React, { useState, useEffect } from "react";
 import { ref, set, get } from "firebase/database";
 import { database } from "../../firebase/config";
 import { QRCodeSVG } from "qrcode.react";
-import {
-  Container,
-  Paper,
-  Typography,
-  Button,
-  Box,
-  Alert,
-  CircularProgress,
-} from "@mui/material";
+import "./ClientQR.css"; // Подключаем CSS
 
 const ClientQR = () => {
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [timeLeft, setTimeLeft] = useState(null);
 
   // Конфигурация зон с приоритетами
   const zones = [
@@ -23,6 +16,27 @@ const ClientQR = () => {
     { name: "Средний ряд", start: 200, end: 300, priority: 2 },
     { name: "Верхний ряд", start: 400, end: 500, priority: 3 },
   ];
+
+  // Генерация уникального токена для QR-кода
+  const generateUniqueToken = () => {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 15);
+    const secret = Math.random().toString(36).substring(2, 15);
+    return `${timestamp}_${random}_${secret}`;
+  };
+
+  // Проверка валидности QR-кода
+  const validateQRData = (qrData) => {
+    const parts = qrData.split("_");
+    if (parts.length !== 3) return false;
+
+    const timestamp = parseInt(parts[0]);
+    const now = Date.now();
+    const hoursDiff = (now - timestamp) / (1000 * 60 * 60);
+
+    // QR-код действителен только 24 часа
+    return hoursDiff <= 24;
+  };
 
   const generateTicket = async () => {
     setLoading(true);
@@ -49,6 +63,10 @@ const ClientQR = () => {
         return;
       }
 
+      // Генерируем уникальный токен
+      const uniqueToken = generateUniqueToken();
+      const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // +24 часа
+
       const ticketData = {
         number: selectedNumber,
         zone: selectedZone.name,
@@ -57,25 +75,53 @@ const ClientQR = () => {
         status: "pending",
         createdAt: new Date().toISOString(),
         clientId: generateClientId(),
+        uniqueToken: uniqueToken,
+        expiresAt: expiresAt,
+        isUsed: false,
       };
 
       await set(ref(database, `tickets/${selectedNumber}`), ticketData);
 
+      // Сохраняем в localStorage
       localStorage.setItem(
         "currentTicket",
         JSON.stringify({
           number: selectedNumber,
+          uniqueToken: uniqueToken,
+          expiresAt: expiresAt,
           createdAt: ticketData.createdAt,
         })
       );
 
       setTicket(ticketData);
+      startTimer(expiresAt);
     } catch (err) {
       console.error("Ошибка:", err);
       setError("Ошибка при получении номерка");
     } finally {
       setLoading(false);
     }
+  };
+
+  const startTimer = (expiresAt) => {
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const diff = expiresAt - now;
+
+      if (diff <= 0) {
+        clearInterval(timer);
+        setTimeLeft("Истек");
+        // Автоматически удаляем просроченный номерок
+        localStorage.removeItem("currentTicket");
+        setTicket(null);
+      } else {
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        setTimeLeft(`${hours}ч ${minutes}м`);
+      }
+    }, 60000); // Обновляем каждую минуту
+
+    return () => clearInterval(timer);
   };
 
   const findFirstAvailableInZone = async (zone) => {
@@ -103,11 +149,8 @@ const ClientQR = () => {
   };
 
   const getQRValue = () => {
-    return JSON.stringify({
-      number: ticket.number,
-      type: "garderob_ticket",
-      generated: ticket.createdAt,
-    });
+    // Включаем уникальный токен в QR-код
+    return `${ticket.uniqueToken}`;
   };
 
   useEffect(() => {
@@ -115,6 +158,13 @@ const ClientQR = () => {
     if (savedTicket) {
       try {
         const parsed = JSON.parse(savedTicket);
+
+        // Проверяем, не истек ли срок
+        if (parsed.expiresAt < Date.now()) {
+          localStorage.removeItem("currentTicket");
+          return;
+        }
+
         const checkTicket = async () => {
           const ticketRef = ref(database, `tickets/${parsed.number}`);
           const snapshot = await get(ticketRef);
@@ -122,9 +172,13 @@ const ClientQR = () => {
 
           if (
             ticketData &&
-            (ticketData.status === "pending" || ticketData.status === "issued")
+            (ticketData.status === "pending" ||
+              ticketData.status === "issued") &&
+            ticketData.uniqueToken === parsed.uniqueToken &&
+            !ticketData.isUsed
           ) {
             setTicket(ticketData);
+            startTimer(parsed.expiresAt);
           } else {
             localStorage.removeItem("currentTicket");
           }
@@ -137,89 +191,72 @@ const ClientQR = () => {
   }, []);
 
   return (
-    <Container maxWidth="sm">
-      <Box sx={{ mt: 4 }}>
-        <Paper elevation={3} sx={{ p: 4, textAlign: "center" }}>
-          <Typography variant="h4" gutterBottom>
-            🎩 Гардероб Шатни
-          </Typography>
+    <div className="client-container">
+      <div className="client-card">
+        <h1 className="client-title">🎩 Гардероб Шатни</h1>
 
-          {!ticket ? (
-            <>
-              <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
-                Нажмите кнопку, чтобы получить номерок
-              </Typography>
+        {!ticket ? (
+          <div className="client-content">
+            <p className="client-description">
+              Нажмите кнопку, чтобы получить номерок для вашей курточки
+            </p>
 
-              {error && (
-                <Alert severity="error" sx={{ mb: 3 }}>
-                  {error}
-                </Alert>
-              )}
+            {error && <div className="client-error">⚠️ {error}</div>}
 
-              <Button
-                variant="contained"
-                color="primary"
-                size="large"
-                onClick={generateTicket}
-                disabled={loading}
-                sx={{ py: 2, px: 4, fontSize: "1.2rem" }}
-              >
-                {loading ? <CircularProgress size={24} /> : "Получить номерок"}
-              </Button>
+            <button
+              className="client-button"
+              onClick={generateTicket}
+              disabled={loading}
+            >
+              {loading ? "Получение..." : "Получить номерок"}
+            </button>
 
-              <Typography
-                variant="caption"
-                display="block"
-                sx={{ mt: 3, color: "text.secondary" }}
-              >
-                Система автоматически выберет свободный номерок по приоритету:
-                <br />
-                1. Нижний ряд (1-100)
-                <br />
-                2. Средний ряд (200-300)
-                <br />
-                3. Верхний ряд (400-500)
-              </Typography>
-            </>
-          ) : (
-            <Box>
-              <Typography
-                variant="h5"
-                gutterBottom
-                sx={{ color: "success.main", fontWeight: "bold" }}
-              >
-                Ваш номерок: #{ticket.number}
-              </Typography>
+            <div className="client-info">
+              <p>Система автоматически выберет свободный номерок:</p>
+              <ul>
+                <li>1. Нижний ряд (1-100)</li>
+                <li>2. Средний ряд (200-300)</li>
+                <li>3. Верхний ряд (400-500)</li>
+              </ul>
+            </div>
+          </div>
+        ) : (
+          <div className="ticket-container">
+            <div className="ticket-header">
+              <span className="ticket-status">✅ Активен</span>
+              {timeLeft && <span className="ticket-timer">⏳ {timeLeft}</span>}
+            </div>
 
-              <Typography variant="subtitle1" gutterBottom>
-                {ticket.zone}
-              </Typography>
+            <h2 className="ticket-number">#{ticket.number}</h2>
+            <p className="ticket-zone">{ticket.zone}</p>
 
-              <Box
-                sx={{
-                  my: 4,
-                  p: 3,
-                  backgroundColor: "#f5f5f5",
-                  display: "inline-block",
-                  borderRadius: 2,
-                  border: "2px solid #e0e0e0",
-                }}
-              >
-                <QRCodeSVG value={getQRValue()} size={256} level="H" />
-              </Box>
+            <div className="qr-container">
+              <QRCodeSVG
+                value={getQRValue()}
+                size={250}
+                level="H"
+                includeMargin={true}
+              />
+            </div>
 
-              <Alert severity="info" sx={{ mb: 3, textAlign: "left" }}>
-                <Typography variant="body2">
-                  <strong>Важно:</strong> Сохраните этот QR-код!
-                  <br />• Покажите при сдаче курточки
-                  <br />• Покажите снова, когда будете забирать
-                </Typography>
-              </Alert>
-            </Box>
-          )}
-        </Paper>
-      </Box>
-    </Container>
+            <div className="ticket-warning">
+              <p>⚠️ Этот QR-код действителен только 24 часа</p>
+              <p>Не показывайте его никому, кроме работника гардероба!</p>
+            </div>
+
+            <div className="ticket-instructions">
+              <h3>Как пользоваться:</h3>
+              <ol>
+                <li>Покажите этот код при сдаче курточки</li>
+                <li>Работник отсканирует и подтвердит приём</li>
+                <li>Сохраните код до получения курточки обратно</li>
+                <li>При получении снова покажите этот же код</li>
+              </ol>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 

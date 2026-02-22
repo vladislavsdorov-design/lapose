@@ -1,213 +1,169 @@
 import React, { useState } from "react";
 import { ref, update } from "firebase/database";
 import { database } from "../../firebase/config";
-import {
-  Paper,
-  Typography,
-  Button,
-  Box,
-  Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Chip,
-} from "@mui/material";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CancelIcon from "@mui/icons-material/Cancel";
-import LocalPoliceIcon from "@mui/icons-material/LocalPolice";
-import CloseIcon from "@mui/icons-material/Close";
+import "./TicketDetails.css";
 
 const TicketDetails = ({ ticket, onClose, onUpdate }) => {
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [actionMessage, setActionMessage] = useState("");
-
-  const getStatusInfo = (status) => {
-    switch (status) {
-      case "pending":
-        return { text: "Ожидает сдачи", color: "warning", icon: "⏳" };
-      case "issued":
-        return { text: "Курточка сдана", color: "success", icon: "✅" };
-      case "completed":
-        return { text: "Курточка выдана", color: "info", icon: "🔄" };
-      case "cancelled":
-        return { text: "Аннулирован", color: "error", icon: "❌" };
-      case "free":
-        return { text: "Свободен", color: "default", icon: "⬜" };
-      default:
-        return { text: "Неизвестно", color: "default", icon: "❓" };
-    }
-  };
+  const [message, setMessage] = useState("");
 
   const handleAction = async (action) => {
     setLoading(true);
-    setError("");
-    setActionMessage("");
+    setMessage("");
 
     try {
       const updates = {};
       const now = new Date().toISOString();
 
       switch (action) {
-        case "confirm":
+        case "accept": // Принять курточку (один клик)
           updates.status = "issued";
           updates.issuedAt = now;
-          setActionMessage("✅ Курточка принята!");
+          updates.acceptedBy = "admin";
+          setMessage("✅ Курточка принята!");
           break;
-        case "cancel":
-          updates.status = "cancelled";
-          updates.cancelledAt = now;
-          setActionMessage("❌ Номерок аннулирован");
-          break;
-        case "complete":
+
+        case "return": // Выдать курточку (один клик)
           updates.status = "completed";
           updates.completedAt = now;
-          setActionMessage("🔄 Курточка выдана");
+          updates.returnedBy = "admin";
+          setMessage("🔄 Курточка выдана!");
           break;
-        case "close":
-          setActionMessage("👁️ Просмотр завершен");
-          setTimeout(() => {
-            onClose();
-          }, 1000);
+
+        case "cancel": // Аннулировать
+          updates.status = "cancelled";
+          updates.cancelledAt = now;
+          updates.cancelledBy = "admin";
+          setMessage("❌ Операция отменена");
+          break;
+
+        case "view": // Просто просмотр
+          setMessage("👁️ Просмотр");
+          setTimeout(onClose, 1000);
           return;
+
         default:
-          setActionMessage("Неизвестное действие");
-          setLoading(false);
           return;
       }
 
       await update(ref(database, `tickets/${ticket.number}`), updates);
+
       setTimeout(() => {
         onUpdate();
+        if (action === "accept" || action === "return") {
+          // Не закрываем автоматически после действий
+        }
       }, 1500);
     } catch (err) {
-      console.error("Ошибка:", err);
-      setError("Ошибка при обновлении статуса");
+      setMessage("❌ Ошибка: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const statusInfo = getStatusInfo(ticket.status);
+  const getStatusText = (status) => {
+    const statuses = {
+      pending: { text: "Ожидает приёма", class: "status-pending" },
+      issued: { text: "Курточка сдана", class: "status-issued" },
+      completed: { text: "Курточка выдана", class: "status-completed" },
+      cancelled: { text: "Аннулирован", class: "status-cancelled" },
+    };
+    return statuses[status] || { text: status, class: "" };
+  };
+
+  const status = getStatusText(ticket.status);
 
   return (
-    <Dialog open={true} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        <Box display="flex" alignItems="center" gap={1}>
-          <span>{statusInfo.icon}</span>
-          <Typography variant="h5">Номерок #{ticket.number}</Typography>
-          <Chip label={statusInfo.text} color={statusInfo.color} size="small" />
-        </Box>
-      </DialogTitle>
+    <div className="ticket-details-overlay" onClick={onClose}>
+      <div
+        className="ticket-details-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button className="modal-close" onClick={onClose}>
+          ×
+        </button>
 
-      <DialogContent>
-        <Paper sx={{ p: 3, mt: 2 }}>
-          {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {error}
-            </Alert>
-          )}
+        <div className={`ticket-status-badge ${status.class}`}>
+          {status.text}
+        </div>
 
-          {actionMessage && (
-            <Alert severity="success" sx={{ mb: 3 }}>
-              {actionMessage}
-            </Alert>
-          )}
+        <h2 className="ticket-details-number">Номерок #{ticket.number}</h2>
 
-          <Typography variant="body1" gutterBottom>
-            <strong>Зона:</strong> {ticket.zone}
-          </Typography>
+        <div className="ticket-details-info">
+          <div className="info-row">
+            <span className="info-label">Зона:</span>
+            <span className="info-value">{ticket.zone}</span>
+          </div>
 
-          <Typography variant="body1" gutterBottom>
-            <strong>Диапазон:</strong> {ticket.zoneStart} - {ticket.zoneEnd}
-          </Typography>
+          <div className="info-row">
+            <span className="info-label">Диапазон:</span>
+            <span className="info-value">
+              {ticket.zoneStart} - {ticket.zoneEnd}
+            </span>
+          </div>
 
           {ticket.createdAt && (
-            <Typography variant="body2" color="textSecondary" gutterBottom>
-              <strong>Создан:</strong>{" "}
-              {new Date(ticket.createdAt).toLocaleString()}
-            </Typography>
+            <div className="info-row">
+              <span className="info-label">Создан:</span>
+              <span className="info-value">
+                {new Date(ticket.createdAt).toLocaleString()}
+              </span>
+            </div>
           )}
 
-          {ticket.issuedAt && (
-            <Typography variant="body2" color="textSecondary" gutterBottom>
-              <strong>Курточка сдана:</strong>{" "}
-              {new Date(ticket.issuedAt).toLocaleString()}
-            </Typography>
+          {ticket.uniqueToken && (
+            <div className="info-row">
+              <span className="info-label">Токен:</span>
+              <span className="info-value token">
+                {ticket.uniqueToken.substring(0, 15)}...
+              </span>
+            </div>
           )}
+        </div>
 
-          {ticket.completedAt && (
-            <Typography variant="body2" color="textSecondary" gutterBottom>
-              <strong>Курточка выдана:</strong>{" "}
-              {new Date(ticket.completedAt).toLocaleString()}
-            </Typography>
-          )}
+        {message && <div className="action-message">{message}</div>}
 
-          <Box sx={{ mt: 4, display: "flex", gap: 2, flexDirection: "column" }}>
-            {ticket.status === "pending" && (
-              <>
-                <Button
-                  variant="contained"
-                  color="success"
-                  size="large"
-                  startIcon={<CheckCircleIcon />}
-                  onClick={() => handleAction("confirm")}
-                  disabled={loading}
-                  fullWidth
-                >
-                  Подтвердить (курточка сдана)
-                </Button>
-
-                <Button
-                  variant="contained"
-                  color="error"
-                  size="large"
-                  startIcon={<CancelIcon />}
-                  onClick={() => handleAction("cancel")}
-                  disabled={loading}
-                  fullWidth
-                >
-                  Аннулировать
-                </Button>
-              </>
-            )}
-
-            {ticket.status === "issued" && (
-              <Button
-                variant="contained"
-                color="primary"
-                size="large"
-                startIcon={<LocalPoliceIcon />}
-                onClick={() => handleAction("complete")}
+        <div className="action-buttons">
+          {ticket.status === "pending" && (
+            <>
+              <button
+                className="action-btn accept-btn"
+                onClick={() => handleAction("accept")}
                 disabled={loading}
-                fullWidth
               >
-                Выдать курточку
-              </Button>
-            )}
+                ✅ Принять курточку
+              </button>
 
-            <Button
-              variant="outlined"
-              size="large"
-              startIcon={<CloseIcon />}
-              onClick={() => handleAction("close")}
+              <button
+                className="action-btn cancel-btn"
+                onClick={() => handleAction("cancel")}
+                disabled={loading}
+              >
+                ❌ Отменить
+              </button>
+            </>
+          )}
+
+          {ticket.status === "issued" && (
+            <button
+              className="action-btn return-btn"
+              onClick={() => handleAction("return")}
               disabled={loading}
-              fullWidth
-              sx={{ mt: ticket.status === "pending" ? 1 : 2 }}
             >
-              Просто закрыть (без изменений)
-            </Button>
-          </Box>
-        </Paper>
-      </DialogContent>
+              🎯 Выдать курточку
+            </button>
+          )}
 
-      <DialogActions>
-        <Button onClick={onClose} color="inherit">
-          Закрыть окно
-        </Button>
-      </DialogActions>
-    </Dialog>
+          <button
+            className="action-btn view-btn"
+            onClick={() => handleAction("view")}
+            disabled={loading}
+          >
+            👁️ Просмотр
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
