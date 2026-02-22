@@ -221,3 +221,27 @@
     padding: 12px;
   }
 }
+.token-warning {
+  margin-top: 15px;
+  padding: 10px;
+  background: #fff3cd;
+  border: 1px solid #ffeeba;
+  border-radius: 8px;
+  color: #856404;
+  font-size: 14px;
+  text-align: center;
+}
+
+.token-warning p {
+  margin: 5px 0;
+}
+
+.action-message.error {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.action-message.success {
+  background: #d4edda;
+  color: #155724;
+}

@@ -7,6 +7,14 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  // Генерация нового токена
+  const generateNewToken = () => {
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 15);
+    const secret = Math.random().toString(36).substring(2, 15);
+    return `${timestamp}_${random}_${secret}`;
+  };
+
   const handleAction = async (action) => {
     setLoading(true);
     setMessage("");
@@ -16,24 +24,31 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
       const now = new Date().toISOString();
 
       switch (action) {
-        case "accept": // Принять курточку (один клик)
+        case "accept": // Принять курточку
           updates.status = "issued";
           updates.issuedAt = now;
           updates.acceptedBy = "admin";
+          // Токен остается тем же (клиент еще не получил курточку)
           setMessage("✅ Курточка принята!");
           break;
 
-        case "return": // Выдать курточку (один клик)
+        case "return": // Выдать курточку - генерируем НОВЫЙ токен!
+          const newToken = generateNewToken();
           updates.status = "completed";
           updates.completedAt = now;
           updates.returnedBy = "admin";
-          setMessage("🔄 Курточка выдана!");
+          updates.oldToken = ticket.uniqueToken; // Сохраняем старый токен для истории
+          updates.uniqueToken = newToken; // Меняем токен!
+          updates.isUsed = true;
+          setMessage("🔄 Курточка выдана! Токен обновлен");
           break;
 
         case "cancel": // Аннулировать
           updates.status = "cancelled";
           updates.cancelledAt = now;
           updates.cancelledBy = "admin";
+          updates.oldToken = ticket.uniqueToken;
+          updates.uniqueToken = generateNewToken(); // Тоже меняем токен при отмене
           setMessage("❌ Операция отменена");
           break;
 
@@ -50,8 +65,9 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
 
       setTimeout(() => {
         onUpdate();
-        if (action === "accept" || action === "return") {
-          // Не закрываем автоматически после действий
+        if (action === "return" || action === "cancel") {
+          // Закрываем после возврата или отмены, так как токен изменился
+          setTimeout(onClose, 2000);
         }
       }, 1500);
     } catch (err) {
@@ -111,17 +127,34 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
             </div>
           )}
 
+          {ticket.issuedAt && (
+            <div className="info-row">
+              <span className="info-label">Принят:</span>
+              <span className="info-value">
+                {new Date(ticket.issuedAt).toLocaleString()}
+              </span>
+            </div>
+          )}
+
           {ticket.uniqueToken && (
             <div className="info-row">
               <span className="info-label">Токен:</span>
               <span className="info-value token">
-                {ticket.uniqueToken.substring(0, 15)}...
+                {ticket.uniqueToken.substring(0, 10)}...
               </span>
             </div>
           )}
         </div>
 
-        {message && <div className="action-message">{message}</div>}
+        {message && (
+          <div
+            className={`action-message ${
+              message.includes("❌") ? "error" : "success"
+            }`}
+          >
+            {message}
+          </div>
+        )}
 
         <div className="action-buttons">
           {ticket.status === "pending" && (
@@ -159,9 +192,16 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
             onClick={() => handleAction("view")}
             disabled={loading}
           >
-            👁️ Просмотр
+            👁️ Только просмотр
           </button>
         </div>
+
+        {ticket.status === "issued" && (
+          <div className="token-warning">
+            <p>⚠️ После выдачи курточки токен изменится!</p>
+            <p>Старый QR-код больше не будет работать</p>
+          </div>
+        )}
       </div>
     </div>
   );

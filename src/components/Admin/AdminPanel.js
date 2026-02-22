@@ -69,10 +69,22 @@ const AdminPanel = () => {
     setStats(newStats);
   };
 
-  const handleScan = (qrData) => setScannedTicket(qrData);
-  const handleCloseTicket = () => {
-    setScannedTicket(null);
-    setTicketData(null);
+  const handleScan = (qrData) => {
+    // qrData содержит { number: "токен" }
+    console.log("Получен QR:", qrData);
+
+    // Ищем билет по токену
+    const foundTicket = Object.values(tickets).find(
+      (ticket) =>
+        ticket.uniqueToken === qrData.number &&
+        (ticket.status === "pending" || ticket.status === "issued")
+    );
+
+    if (foundTicket) {
+      setScannedTicket({ number: foundTicket.number });
+    } else {
+      alert("Недействительный или уже использованный QR-код");
+    }
   };
 
   const getNextTicket = () => {

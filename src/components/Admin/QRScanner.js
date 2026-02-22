@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 import {
   Dialog,
   DialogTitle,
@@ -17,71 +17,87 @@ const QRScanner = ({ onScan }) => {
   const [error, setError] = useState("");
   const [initializing, setInitializing] = useState(false);
   const scannerRef = useRef(null);
-  const containerId = "qr-reader-container";
+  const containerId =
+    "qr-reader-container-" + Math.random().toString(36).substring(7);
 
   useEffect(() => {
+    let html5QrcodeScanner = null;
+
     if (open) {
       setInitializing(true);
 
+      // Даем время для рендера контейнера
       setTimeout(() => {
         try {
-          const scanner = new Html5QrcodeScanner(
-            containerId,
-            {
-              fps: 10,
-              qrbox: { width: 250, height: 250 },
-              aspectRatio: 1.0,
-              showTorchButtonIfSupported: true,
-              showZoomSliderIfSupported: true,
-              defaultZoomValueIfSupported: 2,
-            },
-            false
-          );
+          html5QrcodeScanner = new Html5Qrcode(containerId);
 
-          scanner.render(
-            (decodedText) => {
-              try {
-                const parsed = JSON.parse(decodedText);
-                if (parsed.type === "garderob_ticket") {
-                  onScan(parsed);
-                  scanner.clear();
+          const qrCodeSuccessCallback = (decodedText) => {
+            try {
+              console.log("Отсканировано:", decodedText);
+              onScan({ number: decodedText });
+              if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
                   setOpen(false);
-                  setError("");
-                } else {
-                  setError("Неверный формат QR-кода");
-                }
-              } catch (err) {
-                setError("Не удалось прочитать QR-код");
+                });
               }
-            },
-            (errorMessage) => {
-              console.warn(errorMessage);
+              setError("");
+            } catch (err) {
+              console.error("Ошибка парсинга:", err);
+              setError("Не удалось прочитать QR-код");
             }
-          );
+          };
 
-          scannerRef.current = scanner;
+          const config = {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+          };
+
+          html5QrcodeScanner
+            .start(
+              { facingMode: "environment" },
+              config,
+              qrCodeSuccessCallback,
+              (errorMessage) => {
+                console.warn(errorMessage);
+              }
+            )
+            .then(() => {
+              setInitializing(false);
+            })
+            .catch((err) => {
+              setError("Ошибка доступа к камере: " + err.message);
+              setInitializing(false);
+            });
+
+          scannerRef.current = html5QrcodeScanner;
         } catch (err) {
-          setError("Ошибка инициализации камеры");
-          console.error(err);
-        } finally {
+          setError("Ошибка инициализации: " + err.message);
           setInitializing(false);
         }
-      }, 100);
-
-      return () => {
-        if (scannerRef.current) {
-          scannerRef.current.clear().catch(console.error);
-        }
-      };
+      }, 500);
     }
-  }, [open, onScan]);
+
+    return () => {
+      if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+        html5QrcodeScanner.stop().catch(console.error);
+      }
+    };
+  }, [open, onScan, containerId]);
 
   const handleClose = () => {
-    if (scannerRef.current) {
-      scannerRef.current.clear().catch(console.error);
+    if (scannerRef.current && scannerRef.current.isScanning) {
+      scannerRef.current
+        .stop()
+        .then(() => {
+          setOpen(false);
+          setError("");
+        })
+        .catch(console.error);
+    } else {
+      setOpen(false);
+      setError("");
     }
-    setOpen(false);
-    setError("");
   };
 
   return (
