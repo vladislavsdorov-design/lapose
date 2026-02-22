@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -11,98 +10,50 @@ import {
   Box,
   CircularProgress,
 } from "@mui/material";
+import QrReader from "react-qr-reader";
 
 const QRScanner = ({ onScan }) => {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
-  const [initializing, setInitializing] = useState(false);
-  const scannerRef = useRef(null);
-  const containerId =
-    "qr-reader-container-" + Math.random().toString(36).substring(7);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (open) {
-      setInitializing(true);
-
-      // Даем время для рендера контейнера
-      setTimeout(() => {
-        try {
-          const html5QrcodeScanner = new Html5Qrcode(containerId);
-
-          const qrCodeSuccessCallback = (decodedText) => {
-            try {
-              console.log("Отсканировано:", decodedText);
-              onScan({ number: decodedText });
-              if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
-                html5QrcodeScanner
-                  .stop()
-                  .then(() => {
-                    setOpen(false);
-                  })
-                  .catch(console.error);
-              } else {
-                setOpen(false);
-              }
-              setError("");
-            } catch (err) {
-              console.error("Ошибка парсинга:", err);
-              setError("Не удалось прочитать QR-код");
-            }
-          };
-
-          const config = {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1.0,
-            formatsToSupport: [Html5Qrcode.constants.QrCodeFormat.QR_CODE],
-          };
-
-          html5QrcodeScanner
-            .start(
-              { facingMode: "environment" },
-              config,
-              qrCodeSuccessCallback,
-              (errorMessage) => {
-                // Игнорируем ошибки сканирования
-                console.debug(errorMessage);
-              }
-            )
-            .then(() => {
-              setInitializing(false);
-            })
-            .catch((err) => {
-              setError("Ошибка доступа к камере: " + err.message);
-              setInitializing(false);
-            });
-
-          scannerRef.current = html5QrcodeScanner;
-        } catch (err) {
-          setError("Ошибка инициализации: " + err.message);
-          setInitializing(false);
-        }
-      }, 500);
-    }
-
-    return () => {
-      if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current.stop().catch(console.error);
+  const handleScan = (data) => {
+    if (data) {
+      console.log("Отсканировано:", data);
+      setLoading(true);
+      try {
+        onScan({ number: data });
+        setOpen(false);
+        setError("");
+      } catch (err) {
+        setError("Ошибка обработки QR-кода");
+      } finally {
+        setLoading(false);
       }
-    };
-  }, [open, onScan, containerId]);
+    }
+  };
+
+  const handleError = (err) => {
+    console.error("Ошибка сканера:", err);
+    if (err.name === "NotAllowedError") {
+      setError(
+        "Доступ к камере запрещен. Разрешите доступ в настройках браузера."
+      );
+    } else if (err.name === "NotFoundError") {
+      setError("Камера не найдена. Подключите камеру и попробуйте снова.");
+    } else {
+      setError("Ошибка доступа к камере: " + err.message);
+    }
+  };
+
+  const handleOpen = () => {
+    setOpen(true);
+    setError("");
+  };
 
   const handleClose = () => {
-    if (scannerRef.current && scannerRef.current.isScanning) {
-      scannerRef.current
-        .stop()
-        .then(() => {
-          setOpen(false);
-          setError("");
-        })
-        .catch(console.error);
-    } else {
-      setOpen(false);
-      setError("");
-    }
+    setOpen(false);
+    setError("");
   };
 
   return (
@@ -110,7 +61,7 @@ const QRScanner = ({ onScan }) => {
       <Button
         variant="contained"
         color="primary"
-        onClick={() => setOpen(true)}
+        onClick={handleOpen}
         fullWidth
         size="large"
         sx={{ py: 1.5 }}
@@ -128,7 +79,7 @@ const QRScanner = ({ onScan }) => {
               </Alert>
             )}
 
-            {initializing && (
+            {loading && (
               <Box
                 sx={{
                   display: "flex",
@@ -138,14 +89,23 @@ const QRScanner = ({ onScan }) => {
                 }}
               >
                 <CircularProgress />
-                <Typography sx={{ ml: 2 }}>Инициализация камеры...</Typography>
+                <Typography sx={{ ml: 2 }}>Обработка...</Typography>
               </Box>
             )}
 
-            <div
-              id={containerId}
-              style={{ width: "100%", minHeight: initializing ? 0 : 300 }}
-            />
+            {!loading && !error && (
+              <Box sx={{ width: "100%" }}>
+                <QrReader
+                  delay={300}
+                  onError={handleError}
+                  onScan={handleScan}
+                  style={{ width: "100%" }}
+                  facingMode="environment"
+                  showViewFinder={true}
+                  legacyMode={false}
+                />
+              </Box>
+            )}
 
             <Typography
               variant="body2"
