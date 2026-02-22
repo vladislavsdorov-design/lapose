@@ -15,60 +15,23 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
     return `${timestamp}_${random}_${secret}`;
   };
 
-  const handleAction = async (action) => {
+  const handleAccept = async () => {
     setLoading(true);
     setMessage("");
 
     try {
-      const updates = {};
-      const now = new Date().toISOString();
-
-      switch (action) {
-        case "accept": // Принять курточку
-          updates.status = "issued";
-          updates.issuedAt = now;
-          updates.acceptedBy = "admin";
-          // Токен остается тем же (клиент еще не получил курточку)
-          setMessage("✅ Курточка принята!");
-          break;
-
-        case "return": // Выдать курточку - генерируем НОВЫЙ токен!
-          const newToken = generateNewToken();
-          updates.status = "completed";
-          updates.completedAt = now;
-          updates.returnedBy = "admin";
-          updates.oldToken = ticket.uniqueToken; // Сохраняем старый токен для истории
-          updates.uniqueToken = newToken; // Меняем токен!
-          updates.isUsed = true;
-          setMessage("🔄 Курточка выдана! Токен обновлен");
-          break;
-
-        case "cancel": // Аннулировать
-          updates.status = "cancelled";
-          updates.cancelledAt = now;
-          updates.cancelledBy = "admin";
-          updates.oldToken = ticket.uniqueToken;
-          updates.uniqueToken = generateNewToken(); // Тоже меняем токен при отмене
-          setMessage("❌ Операция отменена");
-          break;
-
-        case "view": // Просто просмотр
-          setMessage("👁️ Просмотр");
-          setTimeout(onClose, 1000);
-          return;
-
-        default:
-          return;
-      }
+      const updates = {
+        status: "issued",
+        issuedAt: new Date().toISOString(),
+        acceptedBy: "admin",
+      };
 
       await update(ref(database, `tickets/${ticket.number}`), updates);
+      setMessage("✅ Курточка принята!");
 
       setTimeout(() => {
         onUpdate();
-        if (action === "return" || action === "cancel") {
-          // Закрываем после возврата или отмены, так как токен изменился
-          setTimeout(onClose, 2000);
-        }
+        onClose();
       }, 1500);
     } catch (err) {
       setMessage("❌ Ошибка: " + err.message);
@@ -77,17 +40,78 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
     }
   };
 
-  const getStatusText = (status) => {
-    const statuses = {
-      pending: { text: "Ожидает приёма", class: "status-pending" },
-      issued: { text: "Курточка сдана", class: "status-issued" },
-      completed: { text: "Курточка выдана", class: "status-completed" },
-      cancelled: { text: "Аннулирован", class: "status-cancelled" },
-    };
-    return statuses[status] || { text: status, class: "" };
+  const handleReturn = async () => {
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const newToken = generateNewToken();
+      const updates = {
+        status: "completed",
+        completedAt: new Date().toISOString(),
+        returnedBy: "admin",
+        oldToken: ticket.uniqueToken,
+        uniqueToken: newToken,
+        isUsed: true,
+      };
+
+      await update(ref(database, `tickets/${ticket.number}`), updates);
+      setMessage("🔄 Курточка выдана!");
+
+      setTimeout(() => {
+        onUpdate();
+        onClose();
+      }, 1500);
+    } catch (err) {
+      setMessage("❌ Ошибка: " + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const status = getStatusText(ticket.status);
+  const handleCancel = async () => {
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const newToken = generateNewToken();
+      const updates = {
+        status: "cancelled",
+        cancelledAt: new Date().toISOString(),
+        cancelledBy: "admin",
+        oldToken: ticket.uniqueToken,
+        uniqueToken: newToken,
+      };
+
+      await update(ref(database, `tickets/${ticket.number}`), updates);
+      setMessage("❌ Операция отменена");
+
+      setTimeout(() => {
+        onUpdate();
+        onClose();
+      }, 1500);
+    } catch (err) {
+      setMessage("❌ Ошибка: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusInfo = (status) => {
+    const statuses = {
+      pending: { text: "Ожидает приёма", class: "status-pending", icon: "⏳" },
+      issued: { text: "Курточка сдана", class: "status-issued", icon: "✅" },
+      completed: {
+        text: "Курточка выдана",
+        class: "status-completed",
+        icon: "🔄",
+      },
+      cancelled: { text: "Аннулирован", class: "status-cancelled", icon: "❌" },
+    };
+    return statuses[status] || { text: status, class: "", icon: "❓" };
+  };
+
+  const status = getStatusInfo(ticket.status);
 
   return (
     <div className="ticket-details-overlay" onClick={onClose}>
@@ -100,6 +124,7 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
         </button>
 
         <div className={`ticket-status-badge ${status.class}`}>
+          <span className="status-icon">{status.icon}</span>
           {status.text}
         </div>
 
@@ -107,12 +132,12 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
 
         <div className="ticket-details-info">
           <div className="info-row">
-            <span className="info-label">Зона:</span>
+            <span className="info-label">📍 Зона:</span>
             <span className="info-value">{ticket.zone}</span>
           </div>
 
           <div className="info-row">
-            <span className="info-label">Диапазон:</span>
+            <span className="info-label">📊 Диапазон:</span>
             <span className="info-value">
               {ticket.zoneStart} - {ticket.zoneEnd}
             </span>
@@ -120,7 +145,7 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
 
           {ticket.createdAt && (
             <div className="info-row">
-              <span className="info-label">Создан:</span>
+              <span className="info-label">🕐 Создан:</span>
               <span className="info-value">
                 {new Date(ticket.createdAt).toLocaleString()}
               </span>
@@ -129,18 +154,18 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
 
           {ticket.issuedAt && (
             <div className="info-row">
-              <span className="info-label">Принят:</span>
+              <span className="info-label">✅ Принят:</span>
               <span className="info-value">
                 {new Date(ticket.issuedAt).toLocaleString()}
               </span>
             </div>
           )}
 
-          {ticket.uniqueToken && (
+          {ticket.completedAt && (
             <div className="info-row">
-              <span className="info-label">Токен:</span>
-              <span className="info-value token">
-                {ticket.uniqueToken.substring(0, 10)}...
+              <span className="info-label">🔄 Выдан:</span>
+              <span className="info-value">
+                {new Date(ticket.completedAt).toLocaleString()}
               </span>
             </div>
           )}
@@ -161,18 +186,18 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
             <>
               <button
                 className="action-btn accept-btn"
-                onClick={() => handleAction("accept")}
+                onClick={handleAccept}
                 disabled={loading}
               >
-                ✅ Принять курточку
+                {loading ? "⏳" : "✅"} Принять курточку
               </button>
 
               <button
                 className="action-btn cancel-btn"
-                onClick={() => handleAction("cancel")}
+                onClick={handleCancel}
                 disabled={loading}
               >
-                ❌ Отменить
+                {loading ? "⏳" : "❌"} Отменить
               </button>
             </>
           )}
@@ -180,26 +205,29 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
           {ticket.status === "issued" && (
             <button
               className="action-btn return-btn"
-              onClick={() => handleAction("return")}
+              onClick={handleReturn}
               disabled={loading}
             >
-              🎯 Выдать курточку
+              {loading ? "⏳" : "🎯"} Выдать курточку
             </button>
           )}
 
-          <button
-            className="action-btn view-btn"
-            onClick={() => handleAction("view")}
-            disabled={loading}
-          >
-            👁️ Только просмотр
-          </button>
+          {(ticket.status === "completed" || ticket.status === "cancelled") && (
+            <div className="info-message">
+              <p>
+                ✨ Этот номерок уже{" "}
+                {ticket.status === "completed" ? "выдан" : "отменен"}
+              </p>
+              <button className="action-btn view-btn" onClick={onClose}>
+                👁️ Закрыть
+              </button>
+            </div>
+          )}
         </div>
 
         {ticket.status === "issued" && (
           <div className="token-warning">
-            <p>⚠️ После выдачи курточки токен изменится!</p>
-            <p>Старый QR-код больше не будет работать</p>
+            <p>⚠️ После выдачи курточки старый QR-код перестанет работать</p>
           </div>
         )}
       </div>
