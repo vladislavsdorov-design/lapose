@@ -21,24 +21,27 @@ const QRScanner = ({ onScan }) => {
     "qr-reader-container-" + Math.random().toString(36).substring(7);
 
   useEffect(() => {
-    let html5QrcodeScanner = null;
-
     if (open) {
       setInitializing(true);
 
       // Даем время для рендера контейнера
       setTimeout(() => {
         try {
-          html5QrcodeScanner = new Html5Qrcode(containerId);
+          const html5QrcodeScanner = new Html5Qrcode(containerId);
 
           const qrCodeSuccessCallback = (decodedText) => {
             try {
               console.log("Отсканировано:", decodedText);
               onScan({ number: decodedText });
-              if (html5QrcodeScanner) {
-                html5QrcodeScanner.stop().then(() => {
-                  setOpen(false);
-                });
+              if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
+                html5QrcodeScanner
+                  .stop()
+                  .then(() => {
+                    setOpen(false);
+                  })
+                  .catch(console.error);
+              } else {
+                setOpen(false);
               }
               setError("");
             } catch (err) {
@@ -51,6 +54,7 @@ const QRScanner = ({ onScan }) => {
             fps: 10,
             qrbox: { width: 250, height: 250 },
             aspectRatio: 1.0,
+            formatsToSupport: [Html5Qrcode.constants.QrCodeFormat.QR_CODE],
           };
 
           html5QrcodeScanner
@@ -59,7 +63,8 @@ const QRScanner = ({ onScan }) => {
               config,
               qrCodeSuccessCallback,
               (errorMessage) => {
-                console.warn(errorMessage);
+                // Игнорируем ошибки сканирования
+                console.debug(errorMessage);
               }
             )
             .then(() => {
@@ -79,8 +84,8 @@ const QRScanner = ({ onScan }) => {
     }
 
     return () => {
-      if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
-        html5QrcodeScanner.stop().catch(console.error);
+      if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().catch(console.error);
       }
     };
   }, [open, onScan, containerId]);

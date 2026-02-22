@@ -3,7 +3,6 @@ import { ref, onValue } from "firebase/database";
 import { database } from "../../firebase/config";
 import QRScanner from "./QRScanner";
 import TicketDetails from "./TicketDetails";
-import "./AdminPanel.css";
 import {
   Container,
   Paper,
@@ -21,11 +20,13 @@ import {
   TableRow,
   Chip,
 } from "@mui/material";
+import "./AdminPanel.css";
 
 const AdminPanel = () => {
   const [scannedTicket, setScannedTicket] = useState(null);
   const [ticketData, setTicketData] = useState(null);
   const [tickets, setTickets] = useState({});
+  const [error, setError] = useState("");
   const [stats, setStats] = useState({
     lower: { free: 100, occupied: 0 },
     middle: { free: 101, occupied: 0 },
@@ -34,11 +35,18 @@ const AdminPanel = () => {
 
   useEffect(() => {
     const ticketsRef = ref(database, "tickets");
-    const unsubscribe = onValue(ticketsRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      setTickets(data);
-      calculateStats(data);
-    });
+    const unsubscribe = onValue(
+      ticketsRef,
+      (snapshot) => {
+        const data = snapshot.val() || {};
+        setTickets(data);
+        calculateStats(data);
+      },
+      (error) => {
+        setError("Ошибка загрузки данных: " + error.message);
+      }
+    );
+
     return () => unsubscribe();
   }, []);
 
@@ -70,7 +78,6 @@ const AdminPanel = () => {
   };
 
   const handleScan = (qrData) => {
-    // qrData содержит { number: "токен" }
     console.log("Получен QR:", qrData);
 
     // Ищем билет по токену
@@ -82,9 +89,15 @@ const AdminPanel = () => {
 
     if (foundTicket) {
       setScannedTicket({ number: foundTicket.number });
+      setError("");
     } else {
-      alert("Недействительный или уже использованный QR-код");
+      setError("Недействительный или уже использованный QR-код");
     }
+  };
+
+  const handleCloseTicket = () => {
+    setScannedTicket(null);
+    setTicketData(null);
   };
 
   const getNextTicket = () => {
@@ -114,16 +127,23 @@ const AdminPanel = () => {
 
   return (
     <Container maxWidth="lg">
-      <Box sx={{ mt: 4 }}>
+      <Box sx={{ mt: 4, mb: 4 }}>
         <Typography variant="h4" gutterBottom>
           👨‍💼 Панель администратора
         </Typography>
 
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError("")}>
+            {error}
+          </Alert>
+        )}
+
         <Grid container spacing={3}>
+          {/* Статистика */}
           <Grid item xs={12}>
             <Paper sx={{ p: 2 }}>
               <Typography variant="h6" gutterBottom>
-                Статистика
+                Статистика по зонам
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} md={4}>
@@ -163,16 +183,17 @@ const AdminPanel = () => {
                 <Alert severity="info" sx={{ mt: 2 }}>
                   Следующий свободный: #{nextTicket.number}(
                   {nextTicket.zone === "lower"
-                    ? "Нижний"
+                    ? "Нижний ряд"
                     : nextTicket.zone === "middle"
-                    ? "Средний"
-                    : "Верхний"}
+                    ? "Средний ряд"
+                    : "Верхний ряд"}
                   )
                 </Alert>
               )}
             </Paper>
           </Grid>
 
+          {/* Сканер QR */}
           <Grid item xs={12} md={6}>
             <Paper sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>
@@ -182,10 +203,11 @@ const AdminPanel = () => {
             </Paper>
           </Grid>
 
+          {/* Последние операции */}
           <Grid item xs={12} md={6}>
             <Paper sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Последние номерки
+                Последние операции
               </Typography>
               <TableContainer>
                 <Table size="small">
@@ -216,6 +238,8 @@ const AdminPanel = () => {
                                   ? "Занят"
                                   : ticket.status === "completed"
                                   ? "Выдан"
+                                  : ticket.status === "cancelled"
+                                  ? "Отменен"
                                   : "Свободен"
                               }
                               color={
@@ -225,6 +249,8 @@ const AdminPanel = () => {
                                   ? "success"
                                   : ticket.status === "completed"
                                   ? "info"
+                                  : ticket.status === "cancelled"
+                                  ? "error"
                                   : "default"
                               }
                               size="small"
@@ -239,11 +265,15 @@ const AdminPanel = () => {
           </Grid>
         </Grid>
 
+        {/* Модальное окно с деталями билета */}
         {scannedTicket && ticketData && (
           <TicketDetails
             ticket={ticketData}
             onClose={handleCloseTicket}
-            onUpdate={() => setTicketData(tickets[scannedTicket.number])}
+            onUpdate={() => {
+              // Обновляем данные после изменения
+              setTicketData(tickets[scannedTicket.number]);
+            }}
           />
         )}
       </Box>
@@ -252,3 +282,5 @@ const AdminPanel = () => {
 };
 
 export default AdminPanel;
+
+// ))))
