@@ -233,3 +233,38 @@
     height: 200px !important;
   }
 }
+.lost-header {
+  background: #fff3cd !important;
+}
+
+.lost-status {
+  background: #fd7e14 !important;
+}
+
+.lost-message {
+  background: #fff3cd;
+  border: 2px solid #fd7e14;
+  border-radius: 10px;
+  padding: 15px;
+  margin: 15px 0;
+  text-align: center;
+}
+
+.lost-message p {
+  color: #856404;
+  font-weight: 600;
+  margin: 5px 0;
+}
+
+.lost-instructions {
+  background: #e7f5ff;
+  border-radius: 10px;
+  padding: 15px;
+  margin-top: 15px;
+  text-align: center;
+}
+
+.lost-instructions p {
+  color: #004085;
+  margin: 5px 0;
+}

@@ -237,7 +237,7 @@
 
 // export default TicketDetails;
 import React, { useState } from "react";
-import { ref, update, set } from "firebase/database"; // ДОБАВЛЕН set
+import { ref, update, set } from "firebase/database";
 import { database } from "../../firebase/config";
 import "./TicketDetails.css";
 
@@ -345,49 +345,47 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
     }
   };
 
-  // Отметить что клиент должен забрать (забытая курточка)
-  const handleMarkForPickup = async () => {
+  // Отметить как забытую (для кнопки в последних операциях)
+  const handleMarkAsLost = async () => {
     setLoading(true);
     setMessage("");
 
     try {
-      // 1. Генерируем новый токен для клиента
+      // Генерируем новый токен для забытой курточки
       const lostToken = generateLostToken(ticket.number);
 
-      // 2. Создаем запись в отдельной таблице "lostItems"
+      // Создаем запись в lostItems
       const lostItem = {
         originalTicketNumber: ticket.number,
         originalZone: ticket.zone,
         lostAt: new Date().toISOString(),
         movedBy: "admin",
-        description: "Курточка ожидает возврата",
         status: "waiting",
         uniqueToken: lostToken,
         clientId: ticket.clientId,
-        clientToken: lostToken, // Токен для клиента
-        notes: "Клиент должен забрать в следующее открытие",
       };
 
-      // Сохраняем в отдельную папку lostItems
-      const lostRef = ref(database, `lostItems/${ticket.number}_${Date.now()}`);
-      await set(lostRef, lostItem);
+      await set(
+        ref(database, `lostItems/${ticket.number}_${Date.now()}`),
+        lostItem
+      );
 
-      // 3. Освобождаем основной номерок
+      // Обновляем основной номерок - меняем токен и добавляем lostToken
       const newToken = generateNewToken();
-      const ticketUpdates = {
+      const updates = {
         status: "completed", // Освобождаем номерок
         completedAt: new Date().toISOString(),
         movedToLost: true,
         movedToLostAt: new Date().toISOString(),
         oldToken: ticket.uniqueToken,
-        uniqueToken: newToken, // Новый токен для следующих клиентов
-        note: "Курточка перемещена в ожидание возврата",
-        lostToken: lostToken, // Сохраняем токен забытой
+        uniqueToken: newToken,
+        lostToken: lostToken, // Сохраняем токен забытой для клиента
+        isLost: true,
       };
 
-      await update(ref(database, `tickets/${ticket.number}`), ticketUpdates);
+      await update(ref(database, `tickets/${ticket.number}`), updates);
 
-      setMessage("📦 Клиент отмечен для возврата. Номерок освобожден!");
+      setMessage("📦 Курточка отмечена как забытая");
 
       setTimeout(() => {
         onUpdate();
@@ -410,7 +408,6 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
         icon: "🔄",
       },
       cancelled: { text: "Аннулирован", class: "status-cancelled", icon: "❌" },
-      free: { text: "Свободен", class: "status-free", icon: "⬜" },
     };
     return statuses[status] || { text: status, class: "", icon: "❓" };
   };
@@ -478,7 +475,7 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
                 onClick={handleAccept}
                 disabled={loading}
               >
-                {loading ? "⏳" : "✅"} Принять курточку
+                {loading ? "⏳" : "✅"} Принять
               </button>
 
               <button
@@ -486,47 +483,32 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
                 onClick={handleCancel}
                 disabled={loading}
               >
-                {loading ? "⏳" : "❌"} Отменить
+                {loading ? "⏳" : "❌"} Аннулировать
               </button>
             </>
           )}
 
           {ticket.status === "issued" && (
-            <>
-              <button
-                className="action-btn return-btn"
-                onClick={handleReturn}
-                disabled={loading}
-              >
-                {loading ? "⏳" : "🎯"} Выдать курточку
-              </button>
+            <button
+              className="action-btn return-btn"
+              onClick={handleReturn}
+              disabled={loading}
+            >
+              {loading ? "⏳" : "🎯"} Выдать
+            </button>
+          )}
 
-              {/* Кнопка для забытой курточки */}
-              <button
-                className="action-btn pickup-btn"
-                onClick={handleMarkForPickup}
-                disabled={loading}
-              >
-                {loading ? "⏳" : "📋"} Забыл - придет позже
-              </button>
-            </>
+          {/* Кнопка "Забыл" показывается только когда статус "issued" */}
+          {ticket.status === "issued" && (
+            <button
+              className="action-btn lost-btn"
+              onClick={handleMarkAsLost}
+              disabled={loading}
+            >
+              {loading ? "⏳" : "📋"} Забыл
+            </button>
           )}
         </div>
-
-        {/* Пояснение для кнопки */}
-        {ticket.status === "issued" && (
-          <div className="pickup-info">
-            <p>
-              🔔 <strong>Клиент забыл курточку?</strong>
-            </p>
-            <ul>
-              <li>Номерок освободится для других</li>
-              <li>Курточка уйдет в хранилище забытых</li>
-              <li>Клиент получит новый QR-код</li>
-              <li>Сможет забрать в любое открытие</li>
-            </ul>
-          </div>
-        )}
       </div>
     </div>
   );
