@@ -237,7 +237,7 @@
 
 // export default TicketDetails;
 import React, { useState } from "react";
-import { ref, update } from "firebase/database";
+import { ref, update, set } from "firebase/database"; // ДОБАВЛЕН set
 import { database } from "../../firebase/config";
 import "./TicketDetails.css";
 
@@ -345,14 +345,16 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
     }
   };
 
-  // НОВОЕ: Отметить что клиент должен забрать (забытая курточка)
+  // Отметить что клиент должен забрать (забытая курточка)
   const handleMarkForPickup = async () => {
     setLoading(true);
     setMessage("");
 
     try {
-      // 1. Создаем запись в отдельной таблице "lostItems"
+      // 1. Генерируем новый токен для клиента
       const lostToken = generateLostToken(ticket.number);
+
+      // 2. Создаем запись в отдельной таблице "lostItems"
       const lostItem = {
         originalTicketNumber: ticket.number,
         originalZone: ticket.zone,
@@ -362,6 +364,7 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
         status: "waiting",
         uniqueToken: lostToken,
         clientId: ticket.clientId,
+        clientToken: lostToken, // Токен для клиента
         notes: "Клиент должен забрать в следующее открытие",
       };
 
@@ -369,16 +372,17 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
       const lostRef = ref(database, `lostItems/${ticket.number}_${Date.now()}`);
       await set(lostRef, lostItem);
 
-      // 2. Освобождаем основной номерок
+      // 3. Освобождаем основной номерок
       const newToken = generateNewToken();
       const ticketUpdates = {
-        status: "completed",
+        status: "completed", // Освобождаем номерок
         completedAt: new Date().toISOString(),
         movedToLost: true,
         movedToLostAt: new Date().toISOString(),
         oldToken: ticket.uniqueToken,
-        uniqueToken: newToken,
+        uniqueToken: newToken, // Новый токен для следующих клиентов
         note: "Курточка перемещена в ожидание возврата",
+        lostToken: lostToken, // Сохраняем токен забытой
       };
 
       await update(ref(database, `tickets/${ticket.number}`), ticketUpdates);
@@ -497,13 +501,13 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
                 {loading ? "⏳" : "🎯"} Выдать курточку
               </button>
 
-              {/* НОВАЯ КНОПКА: Клиент должен забрать */}
+              {/* Кнопка для забытой курточки */}
               <button
                 className="action-btn pickup-btn"
                 onClick={handleMarkForPickup}
                 disabled={loading}
               >
-                {loading ? "⏳" : "📋"} Клиент должен забрать
+                {loading ? "⏳" : "📋"} Забыл - придет позже
               </button>
             </>
           )}
@@ -513,16 +517,14 @@ const TicketDetails = ({ ticket, onClose, onUpdate }) => {
         {ticket.status === "issued" && (
           <div className="pickup-info">
             <p>
-              🔔 <strong>Клиент должен забрать</strong> - использовать если:
+              🔔 <strong>Клиент забыл курточку?</strong>
             </p>
             <ul>
-              <li>Клиент ушел и не забрал курточку</li>
-              <li>Нужно освободить номерок для других</li>
-              <li>Курточка перемещается в специальное хранение</li>
+              <li>Номерок освободится для других</li>
+              <li>Курточка уйдет в хранилище забытых</li>
+              <li>Клиент получит новый QR-код</li>
+              <li>Сможет забрать в любое открытие</li>
             </ul>
-            <p className="note">
-              Клиент получит специальный QR-код для возврата
-            </p>
           </div>
         )}
       </div>

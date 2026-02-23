@@ -31,6 +31,7 @@ const LostItemsPanel = ({ onClose }) => {
     setMessage("");
 
     try {
+      // Отмечаем как возвращенное
       const updates = {
         status: "returned",
         returnedAt: new Date().toISOString(),
@@ -60,7 +61,7 @@ const LostItemsPanel = ({ onClose }) => {
     <div className="lost-items-overlay" onClick={onClose}>
       <div className="lost-items-modal" onClick={(e) => e.stopPropagation()}>
         <div className="lost-items-header">
-          <h2>📋 Клиенты, которые должны забрать</h2>
+          <h2>📋 Забытые курточки</h2>
           <button className="close-btn" onClick={onClose}>
             ×
           </button>
@@ -89,10 +90,11 @@ const LostItemsPanel = ({ onClose }) => {
                 <strong>📅 Оставлена:</strong> {formatDate(selectedItem.lostAt)}
               </p>
               <p>
-                <strong>📍 Зона:</strong> {selectedItem.originalZone}
+                <strong>📍 Оригинальная зона:</strong>{" "}
+                {selectedItem.originalZone}
               </p>
               <p>
-                <strong>📝 Причина:</strong> {selectedItem.description}
+                <strong>📝 Статус:</strong> Ожидает получения
               </p>
             </div>
 
@@ -122,7 +124,7 @@ const LostItemsPanel = ({ onClose }) => {
           <>
             {lostItems.length === 0 ? (
               <div className="empty-state">
-                <p>✨ Нет клиентов, которые должны забрать</p>
+                <p>✨ Нет забытых курточек</p>
               </div>
             ) : (
               <div className="lost-items-list">
@@ -144,10 +146,9 @@ const LostItemsPanel = ({ onClose }) => {
                       <p>
                         <strong>Зона:</strong> {item.originalZone}
                       </p>
-                      <p className="lost-description">{item.description}</p>
                     </div>
                     <div className="lost-item-footer">
-                      <span className="lost-status">Ожидает получения</span>
+                      <span className="lost-status">Ждет получения</span>
                     </div>
                   </div>
                 ))}

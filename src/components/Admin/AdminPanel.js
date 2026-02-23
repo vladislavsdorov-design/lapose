@@ -99,13 +99,17 @@ const AdminPanel = () => {
   const handleScan = (qrData) => {
     console.log("Получен QR:", qrData);
 
-    // Проверяем, может это код забытой вещи?
-    if (qrData.number.startsWith("LOST_")) {
+    // Проверяем тип QR-кода
+    if (qrData.type === "lost" || qrData.number.startsWith("LOST_")) {
+      // Это забытая курточка - открываем хранилище
+      const token = qrData.number || qrData.token;
+      console.log("🔔 Сканирован код забытой курточки:", token);
       setShowLostItems(true);
+      setError("");
       return;
     }
 
-    // Ищем билет по токену
+    // Ищем обычный билет по токену
     const foundTicket = Object.values(tickets).find(
       (ticket) =>
         ticket.uniqueToken === qrData.number &&
