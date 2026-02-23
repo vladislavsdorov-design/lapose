@@ -444,3 +444,44 @@
   background: #e2e3e5;
   color: #383d41;
 }
+/* Новая кнопка для отметки "Клиент должен забрать" */
+.pickup-btn {
+  background: linear-gradient(135deg, #fd7e14 0%, #dc3545 100%);
+  color: white;
+  box-shadow: 0 4px 15px rgba(253, 126, 20, 0.3);
+}
+
+.pickup-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(253, 126, 20, 0.4);
+}
+
+.pickup-info {
+  margin-top: 20px;
+  padding: 15px;
+  background: #fff3cd;
+  border-radius: 10px;
+  border-left: 4px solid #fd7e14;
+}
+
+.pickup-info p {
+  margin: 5px 0;
+  color: #856404;
+}
+
+.pickup-info ul {
+  margin: 10px 0;
+  padding-left: 20px;
+  color: #856404;
+}
+
+.pickup-info li {
+  margin: 5px 0;
+}
+
+.pickup-info .note {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #ffc107;
+  font-weight: 600;
+}

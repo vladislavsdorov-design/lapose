@@ -31,7 +31,6 @@ const LostItemsPanel = ({ onClose }) => {
     setMessage("");
 
     try {
-      // Отмечаем как возвращенное
       const updates = {
         status: "returned",
         returnedAt: new Date().toISOString(),
@@ -61,7 +60,7 @@ const LostItemsPanel = ({ onClose }) => {
     <div className="lost-items-overlay" onClick={onClose}>
       <div className="lost-items-modal" onClick={(e) => e.stopPropagation()}>
         <div className="lost-items-header">
-          <h2>📦 Хранилище забытых вещей</h2>
+          <h2>📋 Клиенты, которые должны забрать</h2>
           <button className="close-btn" onClick={onClose}>
             ×
           </button>
@@ -83,18 +82,17 @@ const LostItemsPanel = ({ onClose }) => {
               ← Назад к списку
             </button>
 
-            <h3>Забытая курточка #{selectedItem.originalTicketNumber}</h3>
+            <h3>Курточка #{selectedItem.originalTicketNumber}</h3>
 
             <div className="lost-item-info">
               <p>
-                <strong>📅 Дата:</strong> {formatDate(selectedItem.lostAt)}
+                <strong>📅 Оставлена:</strong> {formatDate(selectedItem.lostAt)}
               </p>
               <p>
-                <strong>📍 Оригинальная зона:</strong>{" "}
-                {selectedItem.originalZone}
+                <strong>📍 Зона:</strong> {selectedItem.originalZone}
               </p>
               <p>
-                <strong>🔑 Токен:</strong> {selectedItem.uniqueToken}
+                <strong>📝 Причина:</strong> {selectedItem.description}
               </p>
             </div>
 
@@ -117,14 +115,14 @@ const LostItemsPanel = ({ onClose }) => {
               onClick={() => handleReturn(selectedItem)}
               disabled={loading}
             >
-              {loading ? "⏳" : "✅"} Выдать курточку клиенту
+              {loading ? "⏳" : "✅"} Клиент забрал курточку
             </button>
           </div>
         ) : (
           <>
             {lostItems.length === 0 ? (
               <div className="empty-state">
-                <p>✨ В хранилище нет забытых вещей</p>
+                <p>✨ Нет клиентов, которые должны забрать</p>
               </div>
             ) : (
               <div className="lost-items-list">
@@ -146,12 +144,10 @@ const LostItemsPanel = ({ onClose }) => {
                       <p>
                         <strong>Зона:</strong> {item.originalZone}
                       </p>
-                      <p className="lost-token">
-                        Токен: {item.uniqueToken.substring(0, 20)}...
-                      </p>
+                      <p className="lost-description">{item.description}</p>
                     </div>
                     <div className="lost-item-footer">
-                      <span className="lost-status">Ожидает выдачи</span>
+                      <span className="lost-status">Ожидает получения</span>
                     </div>
                   </div>
                 ))}
