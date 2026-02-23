@@ -1,270 +1,149 @@
+@import url("https://fonts.googleapis.com/css2?family=Archivo+Black&family=Bebas+Neue&family=Cinzel:wght@400..900&family=Gravitas+One&family=Merriweather+Sans:ital,wght@0,300..800;1,300..800&family=Montserrat:ital,wght@0,100..900;1,100..900&family=Orbitron:wght@400..900&family=Righteous&family=Rubik+Mono+One&family=Special+Gothic+Expanded+One&family=Stalinist+One&display=swap");
 .client-container {
-  min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  background: linear-gradient(135deg, #000000 0%, #000000 100%);
+  position: relative;
+  padding: 30px;
+  overflow: hidden;
+}
+
+.video-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #000000e6;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.background-video {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -2;
+  filter: brightness(0.8) blur(0px);
 }
 
 .client-card {
-  background: white;
+  background: rgb(255 255 255 / 3%);
+  backdrop-filter: blur(30px);
   border-radius: 20px;
-  padding: 40px;
-  max-width: 500px;
-  width: 100%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  animation: slideIn 0.5s ease-out;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+  width: 90%;
+  margin: 20px;
+  z-index: 1;
+  position: relative;
 }
 
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.card-title-image {
+  max-width: 200px;
+  margin-bottom: 20px;
+  z-index: 1;
+  position: relative;
 }
 
-.client-title {
+.client-card h1 {
+  color: #ffffffa2;
+  margin-bottom: 20px;
+  font-size: 30px;
+  /* font-family: "Rubik Mono One", monospace; */
+  font-family: "Righteous", sans-serif;
+  letter-spacing: 5px;
   text-align: center;
-  font-size: 32px;
-  color: #333;
-  margin-bottom: 30px;
-  font-weight: 700;
 }
 
-.client-content {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+.client-card h2 {
+  font-size: 48px;
+  color: #ffffff;
+  font-family: "Montserrat", sans-serif;
+  margin: 10px 0;
 }
 
-.client-description {
-  text-align: center;
-  color: #666;
-  font-size: 16px;
-  line-height: 1.6;
-}
-
-.client-error {
-  background-color: #fee;
-  color: #c33;
-  padding: 12px;
-  border-radius: 8px;
-  text-align: center;
-  font-size: 14px;
-  border-left: 4px solid #c33;
-}
-
-.client-button {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+.client-card button {
+  background: #00000029;
   color: white;
   border: none;
-  padding: 16px 32px;
+  border: solid 2px #ee99a745;
+  padding: 15px 30px;
+  border-radius: 10px;
   font-size: 18px;
-  font-weight: 600;
-  border-radius: 50px;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  font-family: "Montserrat", sans-serif;
+  transition: background 0.3s;
   width: 100%;
-}
-
-.client-button:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
-}
-
-.client-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.client-info {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 12px;
   margin-top: 20px;
 }
 
-.client-info p {
-  font-weight: 600;
-  color: #555;
-  margin-bottom: 10px;
+.client-card button:hover:not(:disabled) {
+  background: #ee99a745;
 }
 
-.client-info ul {
-  list-style: none;
-  padding: 0;
+.client-card button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 
-.client-info li {
-  padding: 8px 0;
-  color: #666;
-  border-bottom: 1px solid #eee;
-}
-
-.client-info li:last-child {
-  border-bottom: none;
-}
-
-/* Стили для полученного билета */
-.ticket-container {
-  animation: fadeIn 0.5s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.ticket-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  padding: 10px;
-  background: #f8f9fa;
-  border-radius: 8px;
-}
-
-.ticket-status {
-  background: #4caf50;
-  color: white;
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.ticket-timer {
-  background: #ff9800;
-  color: white;
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.ticket-number {
+.error-message {
+  color: #dc3545;
+  margin: 10px 0;
   text-align: center;
-  font-size: 48px;
-  color: #4caf50;
-  margin: 20px 0 10px;
-  font-weight: 800;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.ticket-zone {
-  text-align: center;
-  color: #666;
-  font-size: 18px;
-  margin-bottom: 30px;
+.status-active {
+  color: #28a745;
+  font-weight: bold;
 }
 
-.qr-container {
-  background: white;
-  padding: 20px;
-  border-radius: 20px;
-  display: inline-block;
-  margin: 20px auto;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  border: 2px solid #f0f0f0;
-}
-
-.ticket-warning {
-  background: #fff3cd;
-  border-left: 4px solid #ffc107;
-  padding: 15px;
-  border-radius: 8px;
-  margin: 20px 0;
-}
-
-.ticket-warning p {
-  color: #856404;
-  margin: 5px 0;
-  font-size: 14px;
-}
-
-.ticket-instructions {
-  background: #f8f9fa;
-  padding: 20px;
-  border-radius: 12px;
-}
-
-.ticket-instructions h3 {
-  color: #333;
-  margin-bottom: 15px;
-  font-size: 18px;
-}
-
-.ticket-instructions ol {
-  padding-left: 20px;
-}
-
-.ticket-instructions li {
-  color: #666;
-  margin-bottom: 8px;
-  line-height: 1.5;
-}
-
-/* Адаптивность */
-@media (max-width: 600px) {
-  .client-card {
-    padding: 20px;
-  }
-
-  .client-title {
-    font-size: 24px;
-  }
-
-  .ticket-number {
-    font-size: 36px;
-  }
-
-  .qr-container svg {
-    width: 200px !important;
-    height: 200px !important;
-  }
-}
-.lost-header {
-  background: #fff3cd !important;
-}
-
-.lost-status {
-  background: #fd7e14 !important;
+.status-lost {
+  color: #dc3545;
+  font-weight: bold;
 }
 
 .lost-message {
   background: #fff3cd;
-  border: 2px solid #fd7e14;
+  border: 1px solid #ffeeba;
   border-radius: 10px;
   padding: 15px;
   margin: 15px 0;
-  text-align: center;
-}
-
-.lost-message p {
   color: #856404;
-  font-weight: 600;
-  margin: 5px 0;
 }
 
-.lost-instructions {
-  background: #e7f5ff;
-  border-radius: 10px;
-  padding: 15px;
+.qr-container {
+  display: flex;
+  justify-content: center;
+  background-color: white;
+  padding: 20px;
+  border-radius: 5px;
+}
+
+.info-message {
+  color: #17a2b8;
   margin-top: 15px;
-  text-align: center;
 }
 
-.lost-instructions p {
-  color: #004085;
-  margin: 5px 0;
+.warning-message {
+  color: #dc3545;
+  margin-top: 15px;
+}
+
+/* Затемнение для лучшей читаемости текста на видео */
+.client-container::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 0;
+  pointer-events: none;
 }

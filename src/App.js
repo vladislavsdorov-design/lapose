@@ -8,7 +8,7 @@ function App() {
   return (
     <Router>
       <AppBar position="static">
-        <Toolbar>
+        {/* <Toolbar>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             Гардероб Шатни
           </Typography>
@@ -18,14 +18,14 @@ function App() {
           <Button color="inherit" component={Link} to="/admin">
             Администратор
           </Button>
-        </Toolbar>
+        </Toolbar> */}
       </AppBar>
-      <Container>
-        <Routes>
-          <Route path="/" element={<ClientQR />} />
-          <Route path="/admin" element={<AdminPanel />} />
-        </Routes>
-      </Container>
+      {/* <Container> */}
+      <Routes>
+        <Route path="/" element={<ClientQR />} />
+        <Route path="/admin" element={<AdminPanel />} />
+      </Routes>
+      {/* </Container> */}
     </Router>
   );
 }
