@@ -485,3 +485,8 @@
   border-top: 1px solid #ffc107;
   font-weight: 600;
 }
+.status-lost {
+  background: #fff3cd;
+  color: #856404;
+  border: 2px solid #fd7e14;
+}
