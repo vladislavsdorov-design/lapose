@@ -3,6 +3,7 @@ import { ref, onValue } from "firebase/database";
 import { database } from "../../firebase/config";
 import QRScanner from "./QRScanner";
 import TicketDetails from "./TicketDetails";
+import LostItemsPanel from "./LostItemsPanel"; // Добавлен импорт
 import {
   Container,
   Paper,
@@ -19,7 +20,9 @@ import {
   TableHead,
   TableRow,
   Chip,
+  Button, // Добавлен Button
 } from "@mui/material";
+import InventoryIcon from "@mui/icons-material/Inventory"; // Добавлена иконка
 import "./AdminPanel.css";
 
 const AdminPanel = () => {
@@ -27,6 +30,8 @@ const AdminPanel = () => {
   const [ticketData, setTicketData] = useState(null);
   const [tickets, setTickets] = useState({});
   const [error, setError] = useState("");
+  const [showLostItems, setShowLostItems] = useState(false); // Добавлено состояние
+  const [lostCount, setLostCount] = useState(0); // Добавлено состояние
   const [stats, setStats] = useState({
     lower: { free: 100, occupied: 0 },
     middle: { free: 101, occupied: 0 },
@@ -46,6 +51,20 @@ const AdminPanel = () => {
         setError("Ошибка загрузки данных: " + error.message);
       }
     );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Добавлен эффект для отслеживания забытых вещей
+  useEffect(() => {
+    const lostRef = ref(database, "lostItems");
+    const unsubscribe = onValue(lostRef, (snapshot) => {
+      const data = snapshot.val() || {};
+      const count = Object.values(data).filter(
+        (item) => item.status === "waiting"
+      ).length;
+      setLostCount(count);
+    });
 
     return () => unsubscribe();
   }, []);
@@ -79,6 +98,12 @@ const AdminPanel = () => {
 
   const handleScan = (qrData) => {
     console.log("Получен QR:", qrData);
+
+    // Проверяем, может это код забытой вещи?
+    if (qrData.number.startsWith("LOST_")) {
+      setShowLostItems(true);
+      return;
+    }
 
     // Ищем билет по токену
     const foundTicket = Object.values(tickets).find(
@@ -128,9 +153,35 @@ const AdminPanel = () => {
   return (
     <Container maxWidth="lg">
       <Box sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          👨‍💼 Панель администратора
-        </Typography>
+        {/* Добавлен заголовок с кнопкой */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 3,
+          }}
+        >
+          <Typography variant="h4" gutterBottom>
+            👨‍💼 Панель администратора
+          </Typography>
+
+          <Button
+            variant="contained"
+            color="warning"
+            startIcon={<InventoryIcon />}
+            onClick={() => setShowLostItems(true)}
+            sx={{
+              bgcolor: "#fd7e14",
+              "&:hover": { bgcolor: "#dc3545" },
+              fontSize: "16px",
+              py: 1.5,
+              px: 3,
+            }}
+          >
+            Хранилище забытых {lostCount > 0 && `(${lostCount})`}
+          </Button>
+        </Box>
 
         {error && (
           <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError("")}>
@@ -276,11 +327,14 @@ const AdminPanel = () => {
             }}
           />
         )}
+
+        {/* Модальное окно хранилища забытых вещей */}
+        {showLostItems && (
+          <LostItemsPanel onClose={() => setShowLostItems(false)} />
+        )}
       </Box>
     </Container>
   );
 };
 
 export default AdminPanel;
-
-// ))))
