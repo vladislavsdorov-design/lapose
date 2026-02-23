@@ -249,7 +249,7 @@
 
 // export default ClientQR;
 import React, { useState, useEffect } from "react";
-import { ref, set, get, onValue } from "firebase/database";
+import { ref, set, get, onValue, onDisconnect } from "firebase/database";
 import { database } from "../../firebase/config";
 import { QRCodeSVG } from "qrcode.react";
 import "./ClientQR.css";
@@ -259,6 +259,7 @@ const ClientQR = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isLost, setIsLost] = useState(false);
+  const [showLostMessage, setShowLostMessage] = useState(false);
 
   const zones = [
     { name: "Нижний ряд", start: 1, end: 100, priority: 1 },
@@ -322,11 +323,13 @@ const ClientQR = () => {
           number: selectedNumber,
           uniqueToken: uniqueToken,
           expiresAt: expiresAt,
+          type: "normal",
         })
       );
 
       setTicket(ticketData);
       setIsLost(false);
+      setShowLostMessage(false);
     } catch (err) {
       console.error("Ошибка:", err);
       setError("Ошибка при получении номерка");
@@ -366,58 +369,100 @@ const ClientQR = () => {
       try {
         const parsed = JSON.parse(savedTicket);
 
-        // Слушаем изменения в этом номерке
-        const ticketRef = ref(database, `tickets/${parsed.number}`);
-        const unsubscribe = onValue(ticketRef, (snapshot) => {
-          const ticketData = snapshot.val();
+        // Проверяем, не является ли это LOST токеном
+        if (parsed.uniqueToken && parsed.uniqueToken.startsWith("LOST_")) {
+          // Слушаем изменения в lostItems
+          const lostRef = ref(database, "lostItems");
+          const unsubscribe = onValue(lostRef, (snapshot) => {
+            const lostData = snapshot.val() || {};
 
-          if (ticketData) {
-            // Проверяем, не стала ли курточка забытой
-            if (ticketData.isLost && ticketData.lostToken) {
-              // Меняем токен в localStorage на lostToken
-              localStorage.setItem(
-                "currentTicket",
-                JSON.stringify({
-                  number: parsed.number,
-                  uniqueToken: ticketData.lostToken,
-                  expiresAt: parsed.expiresAt,
-                })
-              );
+            // Ищем нашу запись
+            const foundLost = Object.values(lostData).find(
+              (item) => item.uniqueToken === parsed.uniqueToken
+            );
 
-              // Обновляем отображение
+            if (foundLost) {
+              // Запись еще существует - показываем уведомление
               setTicket({
-                number: parsed.number,
-                zone: ticketData.zone,
-                uniqueToken: ticketData.lostToken,
+                number: foundLost.originalTicketNumber,
+                zone: foundLost.originalZone,
+                uniqueToken: foundLost.uniqueToken,
                 isLost: true,
               });
               setIsLost(true);
+              setShowLostMessage(true);
             } else {
-              // Обычное состояние
-              setTicket({
-                number: parsed.number,
-                zone: ticketData.zone,
-                uniqueToken: ticketData.uniqueToken,
-                status: ticketData.status,
-              });
+              // Запись удалена - курточку выдали, убираем уведомление
+              console.log("Забытая курточка выдана, убираем уведомление");
               setIsLost(false);
+              setShowLostMessage(false);
+              // Можно показать обычный экран или очистить
+              setTicket(null);
+              localStorage.removeItem("currentTicket");
             }
-          }
-        });
+          });
 
-        return () => unsubscribe();
+          return () => unsubscribe();
+        } else {
+          // Обычный токен - слушаем изменения в tickets
+          const ticketRef = ref(database, `tickets/${parsed.number}`);
+          const unsubscribe = onValue(ticketRef, (snapshot) => {
+            const ticketData = snapshot.val();
+
+            if (ticketData) {
+              // Проверяем, не стала ли курточка забытой
+              if (ticketData.isLost && ticketData.lostToken) {
+                // Меняем токен в localStorage на lostToken
+                localStorage.setItem(
+                  "currentTicket",
+                  JSON.stringify({
+                    number: parsed.number,
+                    uniqueToken: ticketData.lostToken,
+                    expiresAt: parsed.expiresAt,
+                    type: "lost",
+                  })
+                );
+
+                // Обновляем отображение
+                setTicket({
+                  number: parsed.number,
+                  zone: ticketData.zone,
+                  uniqueToken: ticketData.lostToken,
+                  isLost: true,
+                });
+                setIsLost(true);
+                setShowLostMessage(true);
+              } else if (
+                ticketData.status === "pending" ||
+                ticketData.status === "issued"
+              ) {
+                // Обычное состояние
+                setTicket({
+                  number: parsed.number,
+                  zone: ticketData.zone,
+                  uniqueToken: ticketData.uniqueToken,
+                  status: ticketData.status,
+                });
+                setIsLost(false);
+                setShowLostMessage(false);
+              }
+            }
+          });
+
+          return () => unsubscribe();
+        }
       } catch (e) {
         console.error("Ошибка:", e);
       }
     }
   }, []);
 
-  return (
-    <div className="client-container">
-      <div className="client-card">
-        <h1 className="client-title">🎩 Гардероб Шатни</h1>
-
-        {!ticket ? (
+  // Если нет билета, показываем кнопку получения
+  if (!ticket) {
+    return (
+      <div className="client-container">
+        <div className="client-card">
+          <h1 className="client-title">🎩 Гардероб Шатни</h1>
           <div className="client-content">
             <p className="client-description">
               Нажмите кнопку, чтобы получить номерок
@@ -433,40 +478,57 @@ const ClientQR = () => {
               {loading ? "Получение..." : "Получить номерок"}
             </button>
           </div>
-        ) : (
-          <div className="ticket-container">
-            <div className={`ticket-header ${isLost ? "lost-header" : ""}`}>
-              <span className={`ticket-status ${isLost ? "lost-status" : ""}`}>
-                {isLost ? "🔔 Забытая курточка" : "✅ Активен"}
-              </span>
-            </div>
+        </div>
+      </div>
+    );
+  }
 
-            <h2 className="ticket-number">#{ticket.number}</h2>
-            <p className="ticket-zone">{ticket.zone}</p>
+  // Если есть билет, показываем его
+  return (
+    <div className="client-container">
+      <div className="client-card">
+        <h1 className="client-title">🎩 Гардероб Шатни</h1>
 
-            {isLost && (
-              <div className="lost-message">
-                <p>🔔 Вы забыли курточку!</p>
-                <p>Приходите в любое открытие и покажите этот QR-код</p>
-              </div>
-            )}
-
-            <div className="qr-container">
-              <QRCodeSVG value={ticket.uniqueToken} size={250} level="H" />
-            </div>
-
-            {isLost ? (
-              <div className="lost-instructions">
-                <p>📋 Сохраните этот код</p>
-                <p>Он действителен для получения забытой курточки</p>
-              </div>
-            ) : (
-              <div className="ticket-warning">
-                <p>⚠️ Не показывайте код никому, кроме работника</p>
-              </div>
-            )}
+        <div className="ticket-container">
+          <div
+            className={`ticket-header ${
+              isLost && showLostMessage ? "lost-header" : ""
+            }`}
+          >
+            <span
+              className={`ticket-status ${
+                isLost && showLostMessage ? "lost-status" : ""
+              }`}
+            >
+              {isLost && showLostMessage ? "🔔 Забытая курточка" : "✅ Активен"}
+            </span>
           </div>
-        )}
+
+          <h2 className="ticket-number">#{ticket.number}</h2>
+          <p className="ticket-zone">{ticket.zone}</p>
+
+          {isLost && showLostMessage && (
+            <div className="lost-message">
+              <p>🔔 Вы забыли курточку!</p>
+              <p>Приходите в любое открытие и покажите этот QR-код</p>
+            </div>
+          )}
+
+          <div className="qr-container">
+            <QRCodeSVG value={ticket.uniqueToken} size={250} level="H" />
+          </div>
+
+          {isLost && showLostMessage ? (
+            <div className="lost-instructions">
+              <p>📋 Сохраните этот код</p>
+              <p>Он действителен для получения забытой курточки</p>
+            </div>
+          ) : (
+            <div className="ticket-warning">
+              <p>⚠️ Не показывайте код никому, кроме работника</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

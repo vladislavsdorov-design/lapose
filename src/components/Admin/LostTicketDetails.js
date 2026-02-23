@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { ref, update, remove } from "firebase/database";
+import { ref, remove, update } from "firebase/database";
 import { database } from "../../firebase/config";
-import "./TicketDetails.css"; // Можно использовать те же стили
+import "./TicketDetails.css";
 
 const LostTicketDetails = ({ lostItem, onClose, onUpdate }) => {
   const [loading, setLoading] = useState(false);
@@ -12,11 +12,13 @@ const LostTicketDetails = ({ lostItem, onClose, onUpdate }) => {
     setMessage("");
 
     try {
-      // 1. Удаляем из lostItems (или помечаем как returned)
+      console.log("Выдаем забытую курточку:", lostItem);
+
+      // 1. Удаляем из lostItems (чтобы у клиента пропало уведомление)
       await remove(ref(database, `lostItems/${lostItem.id}`));
 
-      // 2. Находим оригинальный номерок и обновляем его (опционально)
-      // Можно добавить пометку что был возвращен
+      // 2. Если нужно, обновляем оригинальный номерок
+      // (можно добавить пометку что был возвращен)
 
       setMessage("✅ Забытая курточка выдана!");
 
@@ -25,6 +27,7 @@ const LostTicketDetails = ({ lostItem, onClose, onUpdate }) => {
         onClose();
       }, 1500);
     } catch (err) {
+      console.error("Ошибка при выдаче:", err);
       setMessage("❌ Ошибка: " + err.message);
     } finally {
       setLoading(false);
@@ -96,7 +99,7 @@ const LostTicketDetails = ({ lostItem, onClose, onUpdate }) => {
 
         <div className="pickup-info" style={{ marginTop: "20px" }}>
           <p>🔔 Клиент пришел за забытой курточкой</p>
-          <p>Нажмите "ВЫДАТЬ КУРТОЧКУ" чтобы завершить</p>
+          <p>После выдачи уведомление у клиента исчезнет</p>
         </div>
       </div>
     </div>
