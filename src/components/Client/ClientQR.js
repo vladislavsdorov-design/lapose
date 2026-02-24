@@ -795,7 +795,569 @@
 
 // export default ClientQR;
 // // v1
-import React, { useState, useEffect } from "react";
+
+// import React, { useState, useEffect } from "react";
+// import { ref, set, get, onValue } from "firebase/database";
+// import { database } from "../../firebase/config";
+// import { QRCodeSVG } from "qrcode.react";
+// import "./ClientQR.css";
+
+// const ClientQR = () => {
+//   const [ticket, setTicket] = useState(null);
+//   const [loading, setLoading] = useState(false);
+//   const [error, setError] = useState("");
+//   const [isLost, setIsLost] = useState(false);
+//   const [showLostMessage, setShowLostMessage] = useState(false);
+//   const [ticketStatus, setTicketStatus] = useState("pending");
+//   const [showThankYou, setShowThankYou] = useState(false);
+
+//   // const zones = [
+//   //   { name: "Нижний ряд", start: 2, end: 100, priority: 1 },
+//   //   { name: "Средний ряд", start: 200, end: 300, priority: 2 },
+//   //   { name: "Верхний ряд", start: 400, end: 500, priority: 3 },
+//   // ];
+//   // Добавьте в начало компонента:
+//   const [zoneSettings, setZoneSettings] = useState({
+//     lower: { name: "Нижний ряд", start: 2, end: 100, priority: 1 },
+//     middle: { name: "Средний ряд", start: 200, end: 300, priority: 2 },
+//     upper: { name: "Верхний ряд", start: 400, end: 500, priority: 3 },
+//   });
+
+//   // Загружаем настройки
+//   useEffect(() => {
+//     const settingsRef = ref(database, "settings/zones");
+//     const unsubscribe = onValue(settingsRef, (snapshot) => {
+//       const data = snapshot.val();
+//       if (data) {
+//         // Добавляем priority
+//         const zonesWithPriority = {
+//           lower: { ...data.lower, priority: 1 },
+//           middle: { ...data.middle, priority: 2 },
+//           upper: { ...data.upper, priority: 3 },
+//         };
+//         setZoneSettings(zonesWithPriority);
+//       }
+//     });
+
+//     return () => unsubscribe();
+//   }, []);
+
+//   // В функции generateTicket используйте zoneSettings вместо жестко заданных зон
+//   const zones = Object.values(zoneSettings);
+
+//   const generateUniqueToken = () => {
+//     const timestamp = Date.now();
+//     const random = Math.random().toString(36).substring(2, 15);
+//     const secret = Math.random().toString(36).substring(2, 15);
+//     return `${timestamp}_${random}_${secret}`;
+//   };
+
+//   const generateTicket = async () => {
+//     setLoading(true);
+//     setError("");
+//     setShowThankYou(false);
+
+//     try {
+//       const sortedZones = [...zones].sort((a, b) => a.priority - b.priority);
+
+//       let selectedNumber = null;
+//       let selectedZone = null;
+
+//       for (const zone of sortedZones) {
+//         const result = await findFirstAvailableInZone(zone);
+//         if (result) {
+//           selectedNumber = result;
+//           selectedZone = zone;
+//           break;
+//         }
+//       }
+
+//       if (!selectedNumber) {
+//         setError("Извините, все номерки заняты!");
+//         setLoading(false);
+//         return;
+//       }
+
+//       const uniqueToken = generateUniqueToken();
+//       const expiresAt = Date.now() + 24 * 60 * 60 * 1000;
+
+//       const ticketData = {
+//         number: selectedNumber,
+//         zone: selectedZone.name,
+//         zoneStart: selectedZone.start,
+//         zoneEnd: selectedZone.end,
+//         status: "pending",
+//         createdAt: new Date().toISOString(),
+//         clientId: generateClientId(),
+//         uniqueToken: uniqueToken,
+//         expiresAt: expiresAt,
+//         isUsed: false,
+//       };
+
+//       await set(ref(database, `tickets/${selectedNumber}`), ticketData);
+
+//       localStorage.setItem(
+//         "currentTicket",
+//         JSON.stringify({
+//           number: selectedNumber,
+//           uniqueToken: uniqueToken,
+//           expiresAt: expiresAt,
+//           type: "normal",
+//         })
+//       );
+
+//       setTicket(ticketData);
+//       setTicketStatus("pending");
+//       setIsLost(false);
+//       setShowLostMessage(false);
+//     } catch (err) {
+//       console.error("Ошибка:", err);
+//       setError("Ошибка при получении номерка");
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   const findFirstAvailableInZone = async (zone) => {
+//     for (let i = zone.start; i <= zone.end; i++) {
+//       const ticketRef = ref(database, `tickets/${i}`);
+//       const snapshot = await get(ticketRef);
+//       const ticket = snapshot.val();
+
+//       if (
+//         !ticket ||
+//         ticket.status === "free" ||
+//         ticket.status === "completed" ||
+//         ticket.status === "cancelled"
+//       ) {
+//         return i;
+//       }
+//     }
+//     return null;
+//   };
+
+//   const generateClientId = () => {
+//     return (
+//       "client_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9)
+//     );
+//   };
+
+//   const clearTicket = () => {
+//     setTicket(null);
+//     setTicketStatus("pending");
+//     setIsLost(false);
+//     setShowLostMessage(false);
+//     setShowThankYou(false);
+//     localStorage.removeItem("currentTicket");
+//   };
+
+//   // Слушаем изменения в реальном времени
+//   useEffect(() => {
+//     const savedTicket = localStorage.getItem("currentTicket");
+//     if (savedTicket) {
+//       try {
+//         const parsed = JSON.parse(savedTicket);
+
+//         // Проверяем, не является ли это LOST токеном
+//         if (parsed.uniqueToken && parsed.uniqueToken.startsWith("LOST_")) {
+//           // Слушаем изменения в lostItems
+//           const lostRef = ref(database, "lostItems");
+//           const unsubscribe = onValue(lostRef, (snapshot) => {
+//             const lostData = snapshot.val() || {};
+
+//             // Ищем нашу запись
+//             const foundLost = Object.values(lostData).find(
+//               (item) => item.uniqueToken === parsed.uniqueToken
+//             );
+
+//             if (foundLost) {
+//               // Запись еще существует - показываем уведомление
+//               setTicket({
+//                 number: foundLost.originalTicketNumber,
+//                 zone: foundLost.originalZone,
+//                 uniqueToken: foundLost.uniqueToken,
+//                 isLost: true,
+//                 status: "lost",
+//               });
+//               setIsLost(true);
+//               setShowLostMessage(true);
+//               setTicketStatus("lost");
+//               setShowThankYou(false);
+//             } else {
+//               // Запись удалена - курточку выдали, показываем благодарность и очищаем
+//               console.log("Забытая курточка выдана");
+//               setShowThankYou(true);
+//               // Через 3 секунды очищаем для нового номера
+//               setTimeout(() => {
+//                 clearTicket();
+//               }, 3000);
+//             }
+//           });
+
+//           return () => unsubscribe();
+//         } else {
+//           // Обычный токен - слушаем изменения в tickets
+//           const ticketRef = ref(database, `tickets/${parsed.number}`);
+//           const unsubscribe = onValue(ticketRef, (snapshot) => {
+//             const ticketData = snapshot.val();
+
+//             if (ticketData) {
+//               // Обновляем статус мгновенно
+//               setTicketStatus(ticketData.status || "pending");
+
+//               // Проверяем, не стала ли курточка забытой
+//               if (ticketData.isLost && ticketData.lostToken) {
+//                 // Меняем токен в localStorage на lostToken
+//                 localStorage.setItem(
+//                   "currentTicket",
+//                   JSON.stringify({
+//                     number: parsed.number,
+//                     uniqueToken: ticketData.lostToken,
+//                     expiresAt: parsed.expiresAt,
+//                     type: "lost",
+//                   })
+//                 );
+
+//                 // Обновляем отображение
+//                 setTicket({
+//                   number: parsed.number,
+//                   zone: ticketData.zone,
+//                   uniqueToken: ticketData.lostToken,
+//                   isLost: true,
+//                   status: "lost",
+//                 });
+//                 setIsLost(true);
+//                 setShowLostMessage(true);
+//                 setTicketStatus("lost");
+//                 setShowThankYou(false);
+//               }
+//               // Проверяем, не завершен ли билет (курточку выдали)
+//               else if (ticketData.status === "completed") {
+//                 setTicket({
+//                   number: parsed.number,
+//                   zone: ticketData.zone,
+//                   uniqueToken: ticketData.uniqueToken,
+//                   status: "completed",
+//                 });
+//                 setIsLost(false);
+//                 setShowLostMessage(false);
+//                 setShowThankYou(true);
+
+//                 // Через 3 секунды очищаем для нового номера
+//                 setTimeout(() => {
+//                   clearTicket();
+//                 }, 3000);
+//               }
+//               // Проверяем, не отменен ли билет
+//               else if (ticketData.status === "cancelled") {
+//                 setTicket({
+//                   number: parsed.number,
+//                   zone: ticketData.zone,
+//                   uniqueToken: ticketData.uniqueToken,
+//                   status: "cancelled",
+//                 });
+//                 setIsLost(false);
+//                 setShowLostMessage(false);
+//                 setShowThankYou(false);
+
+//                 // Через 2 секунды очищаем для нового номера
+//                 setTimeout(() => {
+//                   clearTicket();
+//                 }, 2000);
+//               } else {
+//                 // Обычное состояние
+//                 setTicket({
+//                   number: parsed.number,
+//                   zone: ticketData.zone,
+//                   uniqueToken: ticketData.uniqueToken,
+//                   status: ticketData.status,
+//                 });
+//                 setIsLost(false);
+//                 setShowLostMessage(false);
+//                 setShowThankYou(false);
+//               }
+//             } else {
+//               // Если билет удален из базы
+//               console.log("Билет не найден в базе");
+//               clearTicket();
+//             }
+//           });
+
+//           return () => unsubscribe();
+//         }
+//       } catch (e) {
+//         console.error("Ошибка:", e);
+//       }
+//     }
+//   }, []);
+
+//   // Функция для получения текста статуса
+//   const getStatusText = () => {
+//     if (showThankYou) {
+//       return (
+//         <>
+//           <i
+//             className="fa-solid fa-check"
+//             style={{ color: "#4CAF50", fontSize: "20px" }}
+//           ></i>{" "}
+//           <span className="spantextstat" style={{ color: "#4CAF50" }}>
+//             Dziękujemy!
+//           </span>
+//         </>
+//       );
+//     }
+
+//     if (isLost && showLostMessage) {
+//       return (
+//         <>
+//           <i
+//             className="fa-solid fa-bell"
+//             style={{ color: "rgb(168, 0, 0)" }}
+//           ></i>{" "}
+//           <span className="zagubtit">Zagubiona kurteczka</span>
+//         </>
+//       );
+//     }
+
+//     switch (ticketStatus) {
+//       case "issued":
+//       case "active":
+//         return (
+//           <>
+//             <i
+//               className="fa-solid fa-check-double"
+//               style={{ color: "#4CAF50", fontSize: "20px" }}
+//             ></i>{" "}
+//             <span className="spantextstat" style={{ color: "#4CAF50" }}>
+//               Aktywny
+//             </span>
+//           </>
+//         );
+//       case "pending":
+//         return (
+//           <>
+//             <i
+//               className="fa-solid fa-clock"
+//               style={{ color: "#FFA500", fontSize: "20px" }}
+//             ></i>{" "}
+//             <span className="spantextstat" style={{ color: "#FFA500" }}>
+//               Oczekuje na potwierdzenie
+//             </span>
+//           </>
+//         );
+//       case "completed":
+//         return (
+//           <>
+//             <i
+//               className="fa-solid fa-check"
+//               style={{ color: "#808080", fontSize: "20px" }}
+//             ></i>{" "}
+//             <span className="spantextstat" style={{ color: "#808080" }}>
+//               Zakończony
+//             </span>
+//           </>
+//         );
+//       case "cancelled":
+//         return (
+//           <>
+//             <i
+//               className="fa-solid fa-ban"
+//               style={{ color: "#dc3545", fontSize: "20px" }}
+//             ></i>{" "}
+//             <span className="spantextstat" style={{ color: "#dc3545" }}>
+//               Anulowany
+//             </span>
+//           </>
+//         );
+//       default:
+//         return (
+//           <>
+//             <i
+//               className="fa-solid fa-clock"
+//               style={{ color: "#FFA500", fontSize: "20px" }}
+//             ></i>{" "}
+//             <span className="spantextstat" style={{ color: "#FFA500" }}>
+//               Oczekuje na potwierdzenie
+//             </span>
+//           </>
+//         );
+//     }
+//   };
+
+//   // Если нет билета или показываем благодарность перед очисткой
+//   if (!ticket) {
+//     return (
+//       <div className="client-container">
+//         <video autoPlay loop muted playsInline className="background-video">
+//           <source src="/bg.mp4" type="video/mp4" />
+//           Ваш браузер не поддерживает видео.
+//         </video>
+//         <div className="video-overlay"></div>
+//         <img src="/logotit.png" alt="title" className="card-title-image" />
+//         <div className="client-card">
+//           <h1>Garderoba LaPose</h1>
+//           <div>
+//             <p
+//               style={{
+//                 fontSize: "16px",
+//                 lineHeight: 1.5,
+//                 textAlign: "center",
+//                 color: "#727272",
+//               }}
+//             >
+//               Naciśnij przycisk, aby otrzymać numerek oraz{" "}
+//               <strong>kod QR.</strong> Szatnia jest <strong>płatna</strong> —
+//               podejdź do pracownika szatni, <strong>dokonaj płatności</strong>,
+//               a następnie pozwól zeskanować swój <strong>kod QR</strong> w celu
+//               <strong>potwierdzenia.</strong>
+//             </p>
+//             {error && <div className="error-message">⚠️ {error}</div>}
+//             <button onClick={generateTicket} disabled={loading}>
+//               {loading ? "Trwa pobieranie..." : "Otrzymaj numer"}
+//             </button>
+//           </div>
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   // Если есть билет, показываем его
+//   return (
+//     <div className="client-container">
+//       <video autoPlay loop muted playsInline className="background-video">
+//         <source src="/bg.mp4" type="video/mp4" />
+//         Ваш браузер не поддерживает видео.
+//       </video>
+//       <div className="video-overlay"></div>
+//       <img src="/logotit.png" alt="title" className="card-title-image" />
+//       <div className="client-card">
+//         <div>
+//           <div>
+//             <span>{getStatusText()}</span>
+//             <h1>Garderoba LaPose</h1>
+//           </div>
+
+//           {!showThankYou ? (
+//             <>
+//               <h2 className="ticket-number">{ticket.number}</h2>
+//               {/* <p>{ticket.zone}</p> */}
+
+//               {/* Сообщение о статусе ожидания */}
+//               {ticketStatus === "pending" && !isLost && (
+//                 <div className="pending-message">
+//                   <p>
+//                     <i
+//                       className="fa-solid fa-hourglass-start"
+//                       style={{
+//                         color: "rgb(104, 104, 104)",
+//                         paddingRight: "5px",
+//                       }}
+//                     ></i>{" "}
+//                     Oczekiwanie na potwierdzenie przez pracownika
+//                   </p>
+//                   <p>
+//                     <strong>Podejdź do szatni i pokaż kod pracownikowi</strong>
+//                   </p>
+//                 </div>
+//               )}
+
+//               {/* Сообщение о забытой курточке */}
+//               {isLost && showLostMessage && (
+//                 <div className="lost-message">
+//                   <p>
+//                     <i
+//                       className="fa-solid fa-bell"
+//                       style={{
+//                         color: "rgb(166, 0, 0)",
+//                         paddingRight: "5px",
+//                       }}
+//                     ></i>{" "}
+//                     Zapomniałeś kurtki!
+//                   </p>
+//                   <p>Przyjdź w godzinach otwarcia i pokaż ten kod QR</p>
+//                 </div>
+//               )}
+
+//               {/* Сообщение об активном статусе */}
+//               {ticketStatus === "active" && !isLost && (
+//                 <div className="active-message">
+//                   <p>✓ Potwierdzono - możesz zostawić kurtkę</p>
+//                 </div>
+//               )}
+
+//               {/* Сообщение об отмене */}
+//               {ticketStatus === "cancelled" && (
+//                 <div className="cancelled-message">
+//                   <p>
+//                     <i
+//                       className="fa-solid fa-ban"
+//                       style={{
+//                         color: "#dc3545",
+//                         paddingRight: "5px",
+//                       }}
+//                     ></i>{" "}
+//                     Numer został anulowany
+//                   </p>
+//                   <p>Za chwilę zostaniesz przeniesiony na stronę główną</p>
+//                 </div>
+//               )}
+
+//               {/* QR код */}
+//               <div className="qr-container">
+//                 <QRCodeSVG value={ticket.uniqueToken} size={250} level="H" />
+//               </div>
+
+//               {/* Информационные сообщения внизу */}
+//               {isLost && showLostMessage ? (
+//                 <div className="info-messageqr">
+//                   <p> Zachowaj ten kod</p>
+//                   <p>Ważny do odbioru zapomnianej kurtki</p>
+//                 </div>
+//               ) : ticketStatus !== "cancelled" ? (
+//                 <div className="warning-message">
+//                   <p>
+//                     <i
+//                       className="fa-solid fa-bullhorn"
+//                       style={{
+//                         color: "rgb(255, 0, 0)",
+//                         marginRight: "5px",
+//                       }}
+//                     ></i>{" "}
+//                     Nie pokazuj kodu nikomu poza pracownikiem
+//                   </p>
+//                 </div>
+//               ) : null}
+//             </>
+//           ) : (
+//             // Сообщение благодарности после выдачи курточки
+//             <div className="thank-you-message">
+//               <i
+//                 className="fa-solid fa-circle-check"
+//                 style={{
+//                   fontSize: "80px",
+//                   color: "#4CAF50",
+//                   marginBottom: "20px",
+//                 }}
+//               ></i>
+//               <h2 style={{ color: "#4CAF50", marginBottom: "10px" }}>
+//                 Dziękujemy!
+//               </h2>
+//               <p style={{ fontSize: "18px", color: "#666" }}>
+//                 Kurtka została wydana
+//               </p>
+//               <p style={{ fontSize: "14px", color: "#999", marginTop: "20px" }}>
+//                 Za chwilę będzie można otrzymać nowy numerek
+//               </p>
+//             </div>
+//           )}
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default ClientQR;
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { ref, set, get, onValue } from "firebase/database";
 import { database } from "../../firebase/config";
 import { QRCodeSVG } from "qrcode.react";
@@ -810,12 +1372,10 @@ const ClientQR = () => {
   const [ticketStatus, setTicketStatus] = useState("pending");
   const [showThankYou, setShowThankYou] = useState(false);
 
-  // const zones = [
-  //   { name: "Нижний ряд", start: 2, end: 100, priority: 1 },
-  //   { name: "Средний ряд", start: 200, end: 300, priority: 2 },
-  //   { name: "Верхний ряд", start: 400, end: 500, priority: 3 },
-  // ];
-  // Добавьте в начало компонента:
+  // Используем ref для отслеживания последнего статуса
+  const lastStatusRef = useRef(null);
+  const timerRef = useRef(null);
+
   const [zoneSettings, setZoneSettings] = useState({
     lower: { name: "Нижний ряд", start: 2, end: 100, priority: 1 },
     middle: { name: "Средний ряд", start: 200, end: 300, priority: 2 },
@@ -828,7 +1388,6 @@ const ClientQR = () => {
     const unsubscribe = onValue(settingsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
-        // Добавляем priority
         const zonesWithPriority = {
           lower: { ...data.lower, priority: 1 },
           middle: { ...data.middle, priority: 2 },
@@ -841,7 +1400,6 @@ const ClientQR = () => {
     return () => unsubscribe();
   }, []);
 
-  // В функции generateTicket используйте zoneSettings вместо жестко заданных зон
   const zones = Object.values(zoneSettings);
 
   const generateUniqueToken = () => {
@@ -909,6 +1467,7 @@ const ClientQR = () => {
       setTicketStatus("pending");
       setIsLost(false);
       setShowLostMessage(false);
+      lastStatusRef.current = "pending";
     } catch (err) {
       console.error("Ошибка:", err);
       setError("Ошибка при получении номерка");
@@ -941,154 +1500,218 @@ const ClientQR = () => {
     );
   };
 
-  const clearTicket = () => {
+  const clearTicket = useCallback(() => {
+    // Очищаем таймер если есть
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+
     setTicket(null);
     setTicketStatus("pending");
     setIsLost(false);
     setShowLostMessage(false);
     setShowThankYou(false);
     localStorage.removeItem("currentTicket");
-  };
+    lastStatusRef.current = null;
+  }, []);
+
+  // Функция для обработки обновления статуса
+  const handleStatusUpdate = useCallback(
+    (ticketData, parsedToken) => {
+      if (!ticketData) {
+        console.log("Билет не найден в базе");
+        clearTicket();
+        return;
+      }
+
+      // Проверяем, изменился ли статус
+      if (lastStatusRef.current === ticketData.status) {
+        console.log("Статус не изменился:", ticketData.status);
+        return;
+      }
+
+      console.log(
+        "Статус изменился с",
+        lastStatusRef.current,
+        "на",
+        ticketData.status
+      );
+      lastStatusRef.current = ticketData.status;
+
+      // Очищаем предыдущий таймер
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+
+      // Обновляем статус
+      setTicketStatus(ticketData.status);
+
+      // Проверяем, не стала ли курточка забытой
+      if (ticketData.isLost && ticketData.lostToken) {
+        console.log("Курточка стала забытой");
+        localStorage.setItem(
+          "currentTicket",
+          JSON.stringify({
+            number: parsedToken.number,
+            uniqueToken: ticketData.lostToken,
+            expiresAt: parsedToken.expiresAt,
+            type: "lost",
+          })
+        );
+
+        setTicket({
+          number: parsedToken.number,
+          zone: ticketData.zone,
+          uniqueToken: ticketData.lostToken,
+          isLost: true,
+          status: "lost",
+        });
+        setIsLost(true);
+        setShowLostMessage(true);
+        setTicketStatus("lost");
+        setShowThankYou(false);
+      }
+      // Проверяем статус issued (подтвержден)
+      else if (ticketData.status === "issued") {
+        console.log("Билет подтвержден");
+        setTicket({
+          number: parsedToken.number,
+          zone: ticketData.zone,
+          uniqueToken: ticketData.uniqueToken,
+          status: "issued",
+        });
+        setIsLost(false);
+        setShowLostMessage(false);
+        setShowThankYou(false);
+      }
+      // Проверяем статус completed (выдан)
+      else if (ticketData.status === "completed") {
+        console.log("Курточка выдана");
+        setTicket({
+          number: parsedToken.number,
+          zone: ticketData.zone,
+          uniqueToken: ticketData.uniqueToken,
+          status: "completed",
+        });
+        setIsLost(false);
+        setShowLostMessage(false);
+        setShowThankYou(true);
+
+        timerRef.current = setTimeout(() => {
+          clearTicket();
+        }, 3000);
+      }
+      // Проверяем статус cancelled (отменен)
+      else if (ticketData.status === "cancelled") {
+        console.log("Билет отменен");
+        setTicket({
+          number: parsedToken.number,
+          zone: ticketData.zone,
+          uniqueToken: ticketData.uniqueToken,
+          status: "cancelled",
+        });
+        setIsLost(false);
+        setShowLostMessage(false);
+        setShowThankYou(false);
+
+        timerRef.current = setTimeout(() => {
+          clearTicket();
+        }, 2000);
+      }
+      // Статус pending (ожидание)
+      else {
+        console.log("Билет в ожидании");
+        setTicket({
+          number: parsedToken.number,
+          zone: ticketData.zone,
+          uniqueToken: ticketData.uniqueToken,
+          status: ticketData.status,
+        });
+        setIsLost(false);
+        setShowLostMessage(false);
+        setShowThankYou(false);
+      }
+    },
+    [clearTicket]
+  );
 
   // Слушаем изменения в реальном времени
   useEffect(() => {
     const savedTicket = localStorage.getItem("currentTicket");
-    if (savedTicket) {
-      try {
-        const parsed = JSON.parse(savedTicket);
+    if (!savedTicket) return;
 
-        // Проверяем, не является ли это LOST токеном
-        if (parsed.uniqueToken && parsed.uniqueToken.startsWith("LOST_")) {
-          // Слушаем изменения в lostItems
-          const lostRef = ref(database, "lostItems");
-          const unsubscribe = onValue(lostRef, (snapshot) => {
-            const lostData = snapshot.val() || {};
+    try {
+      const parsed = JSON.parse(savedTicket);
 
-            // Ищем нашу запись
-            const foundLost = Object.values(lostData).find(
-              (item) => item.uniqueToken === parsed.uniqueToken
-            );
+      // Проверяем, не является ли это LOST токеном
+      if (parsed.uniqueToken && parsed.uniqueToken.startsWith("LOST_")) {
+        console.log("Слушаем LOST токен:", parsed.uniqueToken);
 
-            if (foundLost) {
-              // Запись еще существует - показываем уведомление
-              setTicket({
-                number: foundLost.originalTicketNumber,
-                zone: foundLost.originalZone,
-                uniqueToken: foundLost.uniqueToken,
-                isLost: true,
-                status: "lost",
-              });
-              setIsLost(true);
-              setShowLostMessage(true);
-              setTicketStatus("lost");
-              setShowThankYou(false);
-            } else {
-              // Запись удалена - курточку выдали, показываем благодарность и очищаем
-              console.log("Забытая курточка выдана");
-              setShowThankYou(true);
-              // Через 3 секунды очищаем для нового номера
-              setTimeout(() => {
-                clearTicket();
-              }, 3000);
-            }
-          });
+        const lostRef = ref(database, "lostItems");
+        const unsubscribe = onValue(lostRef, (snapshot) => {
+          const lostData = snapshot.val() || {};
 
-          return () => unsubscribe();
-        } else {
-          // Обычный токен - слушаем изменения в tickets
-          const ticketRef = ref(database, `tickets/${parsed.number}`);
-          const unsubscribe = onValue(ticketRef, (snapshot) => {
-            const ticketData = snapshot.val();
+          const foundLost = Object.values(lostData).find(
+            (item) => item.uniqueToken === parsed.uniqueToken
+          );
 
-            if (ticketData) {
-              // Обновляем статус мгновенно
-              setTicketStatus(ticketData.status || "pending");
+          if (foundLost) {
+            setTicket({
+              number: foundLost.originalTicketNumber,
+              zone: foundLost.originalZone,
+              uniqueToken: foundLost.uniqueToken,
+              isLost: true,
+              status: "lost",
+            });
+            setIsLost(true);
+            setShowLostMessage(true);
+            setTicketStatus("lost");
+            setShowThankYou(false);
+          } else {
+            console.log("Забытая курточка выдана");
+            setShowThankYou(true);
 
-              // Проверяем, не стала ли курточка забытой
-              if (ticketData.isLost && ticketData.lostToken) {
-                // Меняем токен в localStorage на lostToken
-                localStorage.setItem(
-                  "currentTicket",
-                  JSON.stringify({
-                    number: parsed.number,
-                    uniqueToken: ticketData.lostToken,
-                    expiresAt: parsed.expiresAt,
-                    type: "lost",
-                  })
-                );
-
-                // Обновляем отображение
-                setTicket({
-                  number: parsed.number,
-                  zone: ticketData.zone,
-                  uniqueToken: ticketData.lostToken,
-                  isLost: true,
-                  status: "lost",
-                });
-                setIsLost(true);
-                setShowLostMessage(true);
-                setTicketStatus("lost");
-                setShowThankYou(false);
-              }
-              // Проверяем, не завершен ли билет (курточку выдали)
-              else if (ticketData.status === "completed") {
-                setTicket({
-                  number: parsed.number,
-                  zone: ticketData.zone,
-                  uniqueToken: ticketData.uniqueToken,
-                  status: "completed",
-                });
-                setIsLost(false);
-                setShowLostMessage(false);
-                setShowThankYou(true);
-
-                // Через 3 секунды очищаем для нового номера
-                setTimeout(() => {
-                  clearTicket();
-                }, 3000);
-              }
-              // Проверяем, не отменен ли билет
-              else if (ticketData.status === "cancelled") {
-                setTicket({
-                  number: parsed.number,
-                  zone: ticketData.zone,
-                  uniqueToken: ticketData.uniqueToken,
-                  status: "cancelled",
-                });
-                setIsLost(false);
-                setShowLostMessage(false);
-                setShowThankYou(false);
-
-                // Через 2 секунды очищаем для нового номера
-                setTimeout(() => {
-                  clearTicket();
-                }, 2000);
-              } else {
-                // Обычное состояние
-                setTicket({
-                  number: parsed.number,
-                  zone: ticketData.zone,
-                  uniqueToken: ticketData.uniqueToken,
-                  status: ticketData.status,
-                });
-                setIsLost(false);
-                setShowLostMessage(false);
-                setShowThankYou(false);
-              }
-            } else {
-              // Если билет удален из базы
-              console.log("Билет не найден в базе");
+            timerRef.current = setTimeout(() => {
               clearTicket();
-            }
-          });
+            }, 3000);
+          }
+        });
 
-          return () => unsubscribe();
-        }
-      } catch (e) {
-        console.error("Ошибка:", e);
+        return () => {
+          unsubscribe();
+          if (timerRef.current) clearTimeout(timerRef.current);
+        };
+      } else {
+        // Обычный токен
+        console.log("Слушаем обычный билет:", parsed.number);
+
+        const ticketRef = ref(database, `tickets/${parsed.number}`);
+
+        // Сначала получаем текущее состояние
+        get(ticketRef).then((snapshot) => {
+          const initialData = snapshot.val();
+          if (initialData) {
+            lastStatusRef.current = initialData.status;
+            handleStatusUpdate(initialData, parsed);
+          }
+        });
+
+        const unsubscribe = onValue(ticketRef, (snapshot) => {
+          const ticketData = snapshot.val();
+          handleStatusUpdate(ticketData, parsed);
+        });
+
+        return () => {
+          unsubscribe();
+          if (timerRef.current) clearTimeout(timerRef.current);
+        };
       }
+    } catch (e) {
+      console.error("Ошибка:", e);
     }
-  }, []);
+  }, [handleStatusUpdate, clearTicket]);
 
   // Функция для получения текста статуса
   const getStatusText = () => {
@@ -1120,7 +1743,6 @@ const ClientQR = () => {
 
     switch (ticketStatus) {
       case "issued":
-      case "active":
         return (
           <>
             <i
@@ -1239,7 +1861,6 @@ const ClientQR = () => {
           {!showThankYou ? (
             <>
               <h2 className="ticket-number">{ticket.number}</h2>
-              {/* <p>{ticket.zone}</p> */}
 
               {/* Сообщение о статусе ожидания */}
               {ticketStatus === "pending" && !isLost && (
@@ -1277,13 +1898,6 @@ const ClientQR = () => {
                 </div>
               )}
 
-              {/* Сообщение об активном статусе */}
-              {ticketStatus === "active" && !isLost && (
-                <div className="active-message">
-                  <p>✓ Potwierdzono - możesz zostawić kurtkę</p>
-                </div>
-              )}
-
               {/* Сообщение об отмене */}
               {ticketStatus === "cancelled" && (
                 <div className="cancelled-message">
@@ -1312,7 +1926,8 @@ const ClientQR = () => {
                   <p> Zachowaj ten kod</p>
                   <p>Ważny do odbioru zapomnianej kurtki</p>
                 </div>
-              ) : ticketStatus !== "cancelled" ? (
+              ) : ticketStatus !== "cancelled" &&
+                ticketStatus !== "completed" ? (
                 <div className="warning-message">
                   <p>
                     <i
